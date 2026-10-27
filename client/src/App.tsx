@@ -1,22 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { HostView } from './hostView';
 import { ClientView } from './ClientView';
-import './App.css';
+import { PhoneAvatar } from './components/art';
 
 type ViewState = 'menu' | 'host' | 'client';
 
 function App() {
-  const [view, setView] = useState<ViewState>('menu');
-  const [initialCode, setInitialCode] = useState("");
-
-  useEffect(() => {
-    // Si l'utilisateur arrive via ip:port/AB12, on détecte le code dans l'URL
-    const path = window.location.pathname.replace('/', '').toUpperCase();
-    if (path.length > 0) {
-      setInitialCode(path);
-      setView('client'); // On le met directement côté joueur !
-    }
-  }, []);
+  // Si l'utilisateur arrive via ip:port/AB12, on détecte le code dans l'URL
+  const [initialCode] = useState(() => window.location.pathname.replace('/', '').toUpperCase());
+  // On le met directement côté joueur !
+  const [view, setView] = useState<ViewState>(initialCode ? 'client' : 'menu');
 
   if (view === 'host') {
     return <HostView />;
@@ -27,13 +20,14 @@ function App() {
   }
 
   return (
-    <div>
-      <h1>Last Phone Standing</h1>
-      <p>Choisissez votre rôle :</p>
-      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-        <button onClick={() => setView('host')}>Écran partagé (Host)</button>
-        <button onClick={() => setView('client')}>Téléphone (Joueur)</button>
-      </div>
+    <div className="phone-screen center-col" style={{ justifyContent: 'center', gap: 20 }}>
+      <PhoneAvatar color="#ffd43b" size={170} />
+      <h1 className="logo" style={{ fontSize: '2.8rem' }}>LAST PHONE<br /><span>STANDING</span></h1>
+      <p className="muted" style={{ margin: 0 }}>Le dernier téléphone debout gagne.</p>
+      <button className="btn-primary" style={{ width: '100%', marginTop: 24 }} onClick={() => setView('client')}>JE JOUE</button>
+      <button className="btn-pad" style={{ width: '100%', padding: 18, fontFamily: 'var(--display)', fontSize: '1.1rem' }} onClick={() => setView('host')}>
+        ÉCRAN PARTAGÉ
+      </button>
     </div>
   );
 }
