@@ -6,10 +6,14 @@ import type { PlayerInfo } from "./games/types";
 import { colorOf } from "./colors";
 import { Crown, PhoneAvatar } from "./components/art";
 import { SOUNDS, unlockAudio } from "./feedback";
+import { REACTIONS, type ReactionId } from "./reactions";
 
 interface RankEntry { id: string; name: string; color: string; progress: number; rank: number; points: number; score: number }
 
 const MAX_PLAYERS = 8; // = RoomRegistry.MAX_PLAYERS
+const BUBBLE_MS = 2600; // = durée de l'animation .bubble
+
+interface Bubble { id: string; name: string; color: string; text: string; x: number }
 
 export function HostView() {
     const [roomCode, setRoomCode] = useState<string | null>(null);
@@ -18,6 +22,7 @@ export function HostView() {
     const [startMsg, setStartMsg] = useState<ServerMessage>(null);
     const [ranking, setRanking] = useState<RankEntry[]>([]);
     const [koOrder, setKoOrder] = useState<string[]>([]);
+    const [bubbles, setBubbles] = useState<Bubble[]>([]);
 
     const { connected, sendMessage } = useWebSocket((msg: ServerMessage) => {
         if (msg.type === "room_created") setRoomCode(msg.roomCode);
@@ -30,6 +35,16 @@ export function HostView() {
             setStartMsg(msg);
             setKoOrder([]);
             setGameState("playing");
+        }
+        if (msg.type === "reaction") {
+            const bubble: Bubble = {
+                id: `${msg.id}-${performance.now()}`, name: msg.name, color: msg.color,
+                text: REACTIONS[msg.reaction as ReactionId], x: 8 + Math.random() * 84,
+            };
+            // Au plus 12 bulles à l'écran : l'ambiance sans masquer la partie
+            setBubbles(prev => [...prev.slice(-11), bubble]);
+            setTimeout(() => setBubbles(prev => prev.filter(b => b !== bubble)), BUBBLE_MS);
+            SOUNDS.pop();
         }
         if (msg.type === "round_end") {
             setRanking(msg.ranking);
@@ -51,7 +66,7 @@ export function HostView() {
         return (
             <div className="host-screen center-col" style={{ justifyContent: "center" }}>
                 <h1 className="host-logo">LAST PHONE<br /><span>STANDING</span></h1>
-                <p className="muted">{connected ? "Création de la salle…" : "Connexion au serveur…"}</p>
+                <p className="muted">{connected ? "Création de la salle…" : "Connexion au serveur… (au premier lancement, le serveur peut mettre une minute à se réveiller)"}</p>
             </div>
         );
     }
@@ -59,7 +74,18 @@ export function HostView() {
     const game = startMsg ? GAMES[startMsg.game] : undefined;
 
     if (gameState === "playing" && game) {
-        return <game.Host start={startMsg} players={players} koOrder={koOrder} />;
+        return (
+            <>
+                <game.Host start={startMsg} players={players} koOrder={koOrder} />
+                <div className="bubbles" aria-hidden>
+                    {bubbles.map(b => (
+                        <div key={b.id} className="bubble" style={{ left: `${b.x}%`, borderColor: colorOf(b.color) }}>
+                            <span style={{ color: colorOf(b.color) }}>{b.name}</span> {b.text}
+                        </div>
+                    ))}
+                </div>
+            </>
+        );
     }
 
     if (gameState === "ended") {

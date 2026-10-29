@@ -57,8 +57,9 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   min-height: 100dvh; max-width: 480px; margin: 0 auto; padding: 24px 20px;
   display: flex; flex-direction: column;
 }
-.phone-frame { border: 6px solid var(--me, var(--accent)); min-height: 100dvh; }
-.phone-frame .phone-screen { min-height: calc(100dvh - 12px); user-select: none; touch-action: manipulation; }
+/* Écran de jeu : hauteur fixe = hauteur visible (barre du navigateur comprise), jamais de scroll */
+.phone-frame { border: 6px solid var(--me, var(--accent)); height: 100vh; height: 100dvh; overflow: hidden; }
+.phone-frame .phone-screen { height: 100%; min-height: 0; padding: 14px 16px; user-select: none; touch-action: manipulation; }
 .center-col { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
 
 .code-input, .text-input {
@@ -81,22 +82,23 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .stat small { display: block; }
 .stat b { font-family: var(--display); font-weight: 400; font-size: 2.2rem; line-height: 1; }
 
-.next-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 16px 0; }
+.next-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin: clamp(6px, 2dvh, 16px) 0; flex: none; }
 .next-tile { width: 44px; height: 44px; border-radius: 12px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; }
 
-.qte-title { font-family: var(--display); font-size: 1.9rem; text-align: center; margin-top: 12px; }
-.qte-sub { text-align: center; color: var(--muted); margin: 6px 0 0; }
-.qte-visual { width: 72%; max-width: 300px; align-self: center; margin: 12px 0; }
-.pad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: auto; }
-.pad-grid .btn-pad { aspect-ratio: 1.35; }
-.tap-button { margin-top: auto; height: 140px; font-family: var(--display); font-size: 2.4rem; }
-.approach-area { position: relative; flex: 1; min-height: 320px; margin-top: 16px; border-radius: 24px; background: var(--surface); overflow: hidden; touch-action: manipulation; }
+.qte-title { font-family: var(--display); font-size: clamp(1.4rem, 4.5dvh, 1.9rem); text-align: center; margin-top: 4px; flex: none; }
+.qte-sub { text-align: center; color: var(--muted); margin: 4px 0 0; flex: none; }
+/* Le visuel prend la place restante et rétrécit en premier si l'écran est petit */
+.qte-visual { flex: 1 1 0; min-height: 90px; max-height: 300px; width: 100%; margin: 8px 0; }
+.pad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: auto; flex: none; }
+.pad-grid .btn-pad { height: clamp(70px, 14dvh, 120px); }
+.tap-button { margin-top: auto; height: clamp(90px, 18dvh, 140px); flex: none; font-family: var(--display); font-size: 2.4rem; }
+.approach-area { position: relative; flex: 1 1 0; min-height: 180px; margin-top: 12px; border-radius: 24px; background: var(--surface); overflow: hidden; touch-action: manipulation; }
 
 .ko-title { font-family: var(--display); color: var(--danger); font-size: 5.5rem; line-height: 1; }
 .stat-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; text-align: left; }
 .stat-cards .card b { font-family: var(--display); font-weight: 400; font-size: 2.2rem; display: block; line-height: 1.1; margin-top: 6px; }
 .info-card { display: flex; gap: 14px; align-items: center; text-align: left; width: 100%; }
-.cracks { position: fixed; inset: 0; pointer-events: none; opacity: 0.35; }
+.cracks { position: fixed; inset: 0; pointer-events: none; opacity: 0.35; z-index: -1; }
 
 /* ---------- Écran partagé ---------- */
 .host-screen { min-height: 100dvh; padding: 40px 56px; display: flex; flex-direction: column; gap: 28px; }
@@ -223,3 +225,35 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   .fx, .impact-flash, .confetti { display: none; }
 }
+
+/* ---------- Phase 8 : réactions des tribunes ---------- */
+.reaction-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+.reaction-btn { font-family: var(--display); font-size: 1.15rem; padding: 18px 4px; }
+.reaction-btn:disabled { opacity: 0.45; transform: translateY(4px); box-shadow: 0 2px 0 #0c0b1f; }
+
+.bubbles { position: fixed; inset: 0; pointer-events: none; z-index: 40; overflow: hidden; }
+.bubble {
+  position: absolute; bottom: 12%; transform: translateX(-50%);
+  background: var(--surface); border: 3px solid; border-radius: 999px; padding: 10px 22px;
+  font-family: var(--display); font-size: 1.6rem; white-space: nowrap; box-shadow: 0 6px 0 #000;
+  animation: bubble-up 2.6s ease-out forwards;
+}
+.bubble span { font-family: var(--sans); font-weight: 700; font-size: 1.1rem; margin-right: 6px; }
+@keyframes bubble-up {
+  0% { transform: translate(-50%, 40px) scale(0.4); opacity: 0; }
+  12% { transform: translate(-50%, 0) scale(1.1); opacity: 1; }
+  20% { transform: translate(-50%, -10px) scale(1); }
+  80% { opacity: 1; }
+  100% { transform: translate(-50%, -45vh) scale(0.9); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .bubble { animation: none; opacity: 1; } }
+
+/* Écran K.O. : tout doit tenir sans scroll, boutons de réaction compris */
+.ko-screen { height: 100vh; height: 100dvh; min-height: 0; gap: clamp(4px, 1.2dvh, 12px); padding-top: 14px; padding-bottom: 14px; overflow: hidden; }
+.ko-screen .ko-title { font-size: clamp(2.6rem, 9dvh, 5.5rem); }
+.ko-screen p { margin: 0; }
+.ko-screen .card { padding: clamp(8px, 1.6dvh, 20px) 16px; }
+.ko-screen .stat-cards { margin-top: 0 !important; }
+.ko-screen .stat-cards .card b { font-size: clamp(1.5rem, 4.5dvh, 2.2rem); margin-top: 2px; }
+.ko-screen .reaction-btn { padding: clamp(10px, 2.2dvh, 18px) 4px; }
+@media (max-height: 600px) { .ko-hint { display: none; } }
