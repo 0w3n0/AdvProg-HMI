@@ -29,3 +29,18 @@ Un mini-jeu ne fournit que ses règles et ses deux écrans.
    partagé (`HostGameProps`), voir `games/types.ts` et le modèle `games/qte/`.
 2. L'enregistrer dans `GAMES` (`games/index.ts`) avec la même clé que `MiniGame.id()`.
 3. L'hôte lance le jeu avec `{ "type": "start_game", "roomCode": "...", "game": "<id>" }`.
+
+## Déployer sur Render
+Le fichier [`render.yaml`](render.yaml) décrit deux services gratuits :
+- `last-phone-standing-server` : le serveur Java (Docker, `server/Dockerfile`) ;
+- `last-phone-standing` : le client React (site statique, liens `/CODE` réécrits vers `index.html`).
+
+1. Pousser la branche `main` sur GitHub.
+2. Render : **New > Blueprint**, choisir le dépôt, valider. Les deux services se créent.
+3. Vérifier l'URL du serveur (page du service). Si elle diffère de
+   `last-phone-standing-server.onrender.com`, mettre à jour `VITE_WS_URL` (en `wss://…`)
+   dans l'onglet *Environment* du site statique, puis *Manual Deploy*.
+4. Ouvrir l'URL du site statique sur l'écran partagé : le QR code pointe déjà vers le bon lien.
+
+Offre gratuite : le serveur s'endort après 15 min sans visite et met ~1 min à se réveiller
+(le client réessaie tout seul). Avant une démo, ouvrir l'écran partagé quelques minutes en avance.
