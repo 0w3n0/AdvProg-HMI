@@ -235,3 +235,20 @@ Serveur -> Téléphone :
 ### `player_list_update` / `round_end` (complétés)
 Chaque joueur porte `color`. `player_list_update` est maintenant envoyé à l'hôte **et** aux
 téléphones (l'écran K.O. en déduit le rang provisoire et le nombre de joueurs encore en vie).
+
+
+---
+
+## Phase 8 (réactions des tribunes)
+
+### `reaction`
+Téléphone -> Serveur. Accepté seulement d'un joueur **K.O.**, pendant la manche, avec
+`reaction` parmi `allez`, `ouah`, `nooon`, et au plus une toutes les 700 ms par joueur.
+Sinon ignoré silencieusement.
+```json
+{ "type": "reaction", "reaction": "ouah" }
+```
+Serveur -> Host uniquement (les joueurs encore en vie ne sont pas distraits) :
+```json
+{ "type": "reaction", "id": "uuid-1", "name": "Alice", "color": "red", "progress": 3, "score": 0, "reaction": "ouah" }
+```
