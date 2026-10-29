@@ -1,11 +1,12 @@
 // Feedback multimodal : vibrations (téléphone) et sons synthétisés (pas de fichiers audio).
 
-export type PhoneFeedback = "success" | "near" | "ko";
+export type PhoneFeedback = "success" | "near" | "ko" | "reaction";
 
 const VIBRATION: Record<PhoneFeedback, number | number[]> = {
     success: 20,          // à peine perceptible : on ne félicite pas chaque input
     near: [30, 40, 30],   // double impulsion : « c'était juste »
     ko: 400,              // long et fort : impossible à rater
+    reaction: 15,         // simple accusé de réception du bouton
 };
 
 /** @return false si l'appareil ne sait pas vibrer (iOS Safari) : l'appelant affiche un flash à la place. */
@@ -51,6 +52,9 @@ export const SOUNDS = {
     success: () => tone(880, 0.08, { type: "triangle", gain: 0.12 }),
     near: () => { tone(660, 0.07, { type: "square", gain: 0.08 }); tone(660, 0.07, { type: "square", gain: 0.08, delay: 0.1 }); },
     ko: () => tone(300, 0.4, { type: "sawtooth", gain: 0.2, slideTo: 60 }),
+    reaction: () => tone(520, 0.06, { type: "triangle", gain: 0.1, slideTo: 780 }),
+    // Écran partagé : « pop » discret à chaque bulle de réaction
+    pop: () => tone(700 + Math.random() * 300, 0.07, { type: "sine", gain: 0.06 }),
     // Écran partagé
     tick: () => tone(1000, 0.06, { gain: 0.15 }),
     go: () => tone(1500, 0.3, { type: "triangle", gain: 0.2 }),
