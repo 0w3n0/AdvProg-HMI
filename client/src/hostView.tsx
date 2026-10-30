@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useWebSocket, type ServerMessage } from "./useWebSocket";
 import { GAMES, DEFAULT_GAME } from "./games";
@@ -23,6 +23,24 @@ export function HostView() {
     const [ranking, setRanking] = useState<RankEntry[]>([]);
     const [koOrder, setKoOrder] = useState<string[]>([]);
     const [bubbles, setBubbles] = useState<Bubble[]>([]);
+    const [copied, setCopied] = useState(false);
+    const linkRef = useRef<HTMLSpanElement>(null);
+
+    const copyLink = async () => {
+        const link = `${window.location.origin}/${roomCode}`;
+        try {
+            // L'API presse-papiers n'existe qu'en https (Render) ou sur localhost
+            await navigator.clipboard.writeText(link);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            // En http sur le réseau local : on sélectionne le lien, Ctrl+C suffit
+            const range = document.createRange();
+            if (linkRef.current) range.selectNodeContents(linkRef.current);
+            window.getSelection()?.removeAllRanges();
+            window.getSelection()?.addRange(range);
+        }
+    };
 
     const { connected, sendMessage } = useWebSocket((msg: ServerMessage) => {
         if (msg.type === "room_created") setRoomCode(msg.roomCode);
@@ -107,7 +125,10 @@ export function HostView() {
                 <div className="join-card">
                     <div>
                         <div className="label">Rejoins sur</div>
-                        <div className="join-url">{window.location.host}</div>
+                        <div className="join-link">
+                            <span ref={linkRef} className="join-url">{window.location.host}/{roomCode}</span>
+                            <button className="copy-btn" onClick={copyLink}>{copied ? "COPIÉ !" : "COPIER"}</button>
+                        </div>
                         <div className="label">Code de la salle</div>
                         <div className="code-tiles">{roomCode.split("").map((c, i) => <span key={i}>{c}</span>)}</div>
                     </div>
