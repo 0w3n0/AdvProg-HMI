@@ -35,7 +35,7 @@ Le fichier [`render.yaml`](render.yaml) décrit deux services gratuits :
 - `last-phone-standing-server` : le serveur Java (Docker, `server/Dockerfile`) ;
 - `last-phone-standing` : le client React (site statique, liens `/CODE` réécrits vers `index.html`).
 
-1. Pousser la branche `main` sur GitHub.
+1. Pousser la branche `final-presentation` sur GitHub (c'est elle que `render.yaml` déploie).
 2. Render : **New > Blueprint**, choisir le dépôt, valider. Les deux services se créent.
 3. Vérifier l'URL du serveur (page du service). Si elle diffère de
    `last-phone-standing-server.onrender.com`, mettre à jour `VITE_WS_URL` (en `wss://…`)

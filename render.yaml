@@ -7,7 +7,7 @@ services:
     dockerContext: ./server
     dockerfilePath: ./server/Dockerfile
     plan: free
-    branch: main
+    branch: final-presentation
 
   # Client React (site statique)
   - type: web
@@ -15,7 +15,7 @@ services:
     runtime: static
     buildCommand: cd client && npm ci && npm run build
     staticPublishPath: ./client/dist
-    branch: main
+    branch: final-presentation
     envVars:
       # À vérifier après le 1er déploiement : doit être l'URL réelle du serveur, en wss://
       - key: VITE_WS_URL
