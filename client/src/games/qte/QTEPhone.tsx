@@ -18,7 +18,7 @@ export function QTEPhone({ start: startMsg, me, send, onEliminated: onKo }: Phon
         send({ type: "eliminated", count });
         onKo(count, <>Raté au {count + 1}<sup>{count === 0 ? "er" : "e"}</sup> input — c'était <b>{describe(missed)}</b>.</>);
     };
-    const speed = roundSpeed(round);
+    const speed = roundSpeed(round, startMsg.startSpeed);
     const [index, setIndex] = useState(0);
     // Le premier input démarre après le compte à rebours
     const [start, setStart] = useState(() => performance.now() + COUNTDOWN_MS);
@@ -65,7 +65,7 @@ export function QTEPhone({ start: startMsg, me, send, onEliminated: onKo }: Phon
     if (elapsed < 0) {
         return (
             <div className="phone-screen center-col" style={{ justifyContent: "center" }}>
-                <span className="label">Manche {round}{speed > 1 && ` · vitesse ×${speed.toFixed(1)}`}</span>
+                <span className="label">Manche {round} / {startMsg.totalRounds} · vitesse ×{speed.toFixed(1)}</span>
                 <div key={Math.ceil(-elapsed / 1000)} className="countdown">{Math.ceil(-elapsed / 1000)}</div>
                 <p className="muted">Prépare-toi : regarde ton téléphone, pas l'écran !</p>
             </div>

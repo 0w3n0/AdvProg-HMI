@@ -73,7 +73,7 @@ export function QTEHost({ start, players, koOrder }: HostGameProps) {
             )}
             <header className="live-top">
                 <div className="logo-small">LAST PHONE <span>STANDING</span></div>
-                <div><span className="display muted">MANCHE {round}</span> <span className="muted">· Vitesse ×{roundSpeed(round).toFixed(1)}</span></div>
+                <div><span className="display muted">MANCHE {round} / {start.totalRounds}</span> <span className="muted">· Vitesse ×{roundSpeed(round, start.startSpeed).toFixed(1)}</span></div>
                 <div className="pill"><i />{alive.length} / {players.length} EN VIE</div>
             </header>
 
