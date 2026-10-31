@@ -27,8 +27,9 @@ function mulberry32(seed: number) {
     };
 }
 
-export function roundSpeed(round: number) {
-    return 1 + 0.2 * (round - 1);
+/** Vitesse d'une manche : vitesse de départ choisie dans le lobby, +0.2 par manche. */
+export function roundSpeed(round: number, startSpeed = 1) {
+    return startSpeed + 0.2 * (round - 1);
 }
 
 /** Premier input d'un nouveau type (9e, 17e) : annoncé à l'écran et plus facile (×1.5 sur temps, zone et tolérance). */
