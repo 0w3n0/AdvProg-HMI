@@ -27,7 +27,8 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
     const [error, setError] = useState("");
     const [startMsg, setStartMsg] = useState<ServerMessage>(null);
     const [ko, setKo] = useState<{ count: number; summary: ReactNode } | null>(null);
-    const [myResult, setMyResult] = useState<RankEntry | null>(null);
+    // finalRank : rang au score cumulé, seulement après la dernière manche
+    const [myResult, setMyResult] = useState<(RankEntry & { finalRank?: number; totalRounds: number }) | null>(null);
     const [phoneSound, setPhoneSoundState] = useState(getPhoneSound);
     const [reactionCooldown, setReactionCooldown] = useState(false);
 
@@ -49,8 +50,17 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
             setKo(null);
             setGameState("playing");
         } else if (msg.type === "round_end") {
-            setMyResult(msg.ranking.find((e: RankEntry) => e.id === myId) ?? null);
+            const mine: RankEntry | undefined = msg.ranking.find((e: RankEntry) => e.id === myId);
+            setMyResult(mine ? {
+                ...mine, totalRounds: msg.totalRounds,
+                finalRank: msg.final ? 1 + msg.ranking.filter((e: RankEntry) => e.score > mine.score).length : undefined,
+            } : null);
             setGameState("ended");
+        } else if (msg.type === "lobby") {
+            // Nouvelle partie : retour à l'écran d'attente, scores remis à zéro côté serveur
+            setMyResult(null);
+            setKo(null);
+            setGameState("waiting");
         } else if (msg.type === "host_left") {
             setMyId(null);
             setGameState("waiting");
@@ -140,9 +150,20 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
     if (gameState === "ended") {
         return (
             <div className="phone-screen center-col" style={{ justifyContent: "center" }}>
-                <span className="label">Manche {startMsg?.round} terminée</span>
+                <span className="label">
+                    {myResult?.finalRank ? "Partie terminée — classement final" : `Manche ${startMsg?.round} / ${myResult?.totalRounds ?? "?"} terminée`}
+                </span>
                 <PhoneAvatar color={myColor} size={170} />
-                {myResult && (
+                {myResult?.finalRank && (
+                    <>
+                        <h1 className="display" style={{ fontSize: "5rem", lineHeight: 1 }}>
+                            {myResult.finalRank}<sup style={{ fontSize: "0.4em" }}>{myResult.finalRank === 1 ? "er" : "e"}</sup>
+                        </h1>
+                        <p style={{ fontSize: "1.2rem", margin: 0 }}><b style={{ color: "var(--accent)" }}>{myResult.score} pts</b> au total</p>
+                        <p className="muted" style={{ margin: 0 }}>Dernière manche : {myResult.rank}<sup>{myResult.rank === 1 ? "er" : "e"}</sup> · {myResult.progress} inputs</p>
+                    </>
+                )}
+                {myResult && !myResult.finalRank && (
                     <>
                         <h1 className="display" style={{ fontSize: "5rem", lineHeight: 1 }}>
                             {myResult.rank}<sup style={{ fontSize: "0.4em" }}>{myResult.rank === 1 ? "er" : "e"}</sup>
@@ -153,7 +174,7 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
                         <p className="muted" style={{ margin: 0 }}>Total : {myResult.score} pts</p>
                     </>
                 )}
-                <p className="muted">En attente de la manche suivante…</p>
+                <p className="muted">{myResult?.finalRank ? "Regarde l'écran principal !" : "En attente de la manche suivante…"}</p>
             </div>
         );
     }
