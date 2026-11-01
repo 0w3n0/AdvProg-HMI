@@ -1,4 +1,3 @@
-/* Thème des maquettes (Last Phone Standing.pdf) */
 :root {
   --bg: #12112a;
   --surface: #1c1a3a;
@@ -24,7 +23,6 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
 button:disabled { cursor: default; }
 h1, h2, h3 { margin: 0; font-weight: 400; }
 
-/* ---------- Commun ---------- */
 .display { font-family: var(--display); letter-spacing: 0.02em; }
 .logo { font-family: var(--display); line-height: 0.95; text-align: center; font-size: 2.2rem; }
 .logo span { color: var(--accent); }
@@ -52,12 +50,10 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 
 .card { background: var(--surface); border-radius: 24px; padding: 20px; }
 
-/* ---------- Téléphone ---------- */
 .phone-screen {
   min-height: 100dvh; max-width: 480px; margin: 0 auto; padding: 24px 20px;
   display: flex; flex-direction: column;
 }
-/* Écran de jeu : hauteur fixe = hauteur visible (barre du navigateur comprise), jamais de scroll */
 .phone-frame { border: 6px solid var(--me, var(--accent)); height: 100vh; height: 100dvh; overflow: hidden; }
 .phone-frame .phone-screen { height: 100%; min-height: 0; padding: 14px 16px; user-select: none; touch-action: manipulation; }
 .center-col { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
@@ -87,7 +83,6 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 
 .qte-title { font-family: var(--display); font-size: clamp(1.4rem, 4.5dvh, 1.9rem); text-align: center; margin-top: 4px; flex: none; }
 .qte-sub { text-align: center; color: var(--muted); margin: 4px 0 0; flex: none; }
-/* Le visuel prend la place restante et rétrécit en premier si l'écran est petit */
 .qte-visual { flex: 1 1 0; min-height: 90px; max-height: 300px; width: 100%; margin: 8px 0; }
 .pad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: auto; flex: none; }
 .pad-grid .btn-pad { height: clamp(70px, 14dvh, 120px); }
@@ -107,7 +102,6 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .info-card { display: flex; gap: 14px; align-items: center; text-align: left; width: 100%; }
 .cracks { position: fixed; inset: 0; pointer-events: none; opacity: 0.35; z-index: -1; }
 
-/* ---------- Écran partagé ---------- */
 .host-screen { min-height: 100dvh; padding: 32px 56px; display: flex; flex-direction: column; gap: 22px; }
 .host-logo { font-family: var(--display); font-size: clamp(2.5rem, 5vw, 4.5rem); line-height: 0.95; }
 .host-logo span { color: var(--accent); }
@@ -175,9 +169,6 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   .lane-names { margin: -28px -16px 0; padding: 12px 16px; }
 }
 
-/* ---------- Phase 7 : feedback ---------- */
-
-/* Téléphone : flash par-dessus l'écran (plus marqué si l'appareil ne vibre pas) */
 .phone-screen { position: relative; }
 .fx { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: flex; align-items: center; justify-content: center; }
 .fx-success { box-shadow: inset 0 0 0 6px var(--me, #2ee6a6); animation: fx-fade 0.25s ease-out both; }
@@ -204,7 +195,6 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .pulse { animation: pulse 0.35s ease-in-out infinite alternate; }
 @keyframes pulse { from { opacity: 1; } to { opacity: 0.35; } }
 
-/* Écran partagé : impact frame (couleurs inversées un instant), K.O., dernier debout */
 .impact-flash { position: absolute; inset: 0; background: #fff; mix-blend-mode: difference; pointer-events: none; z-index: 20; animation: impact 0.3s steps(1, end) both; }
 @keyframes impact { 0% { opacity: 1; } 35% { opacity: 0.6; } 60%, 100% { opacity: 0; } }
 .burst-in { animation: burst 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; z-index: 5; }
@@ -222,7 +212,6 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 }
 @keyframes banner { from { transform: translate(-50%, -50%) scale(0) rotate(-20deg); } to { transform: translate(-50%, -50%) scale(1) rotate(-3deg); } }
 
-/* Podium : 3e, puis 2e, puis 1er ; confettis qui tombent */
 .podium-col { animation: rise 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 .podium-col.third { animation-delay: 0.2s; }
 .podium-col.second { animation-delay: 0.7s; }
@@ -231,13 +220,11 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .confetti { animation: confetti-fall 4s linear infinite; }
 @keyframes confetti-fall { from { transform: translateY(-40vh) rotate(var(--r)); } to { transform: translateY(100vh) rotate(calc(var(--r) + 540deg)); } }
 
-/* Accessibilité : pas de secousses ni de flashs si l'utilisateur l'a demandé au système */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   .fx, .impact-flash, .confetti { display: none; }
 }
 
-/* ---------- Phase 8 : réactions des tribunes ---------- */
 .reaction-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
 .reaction-btn { font-family: var(--display); font-size: 1.15rem; padding: 18px 4px; }
 .reaction-btn:disabled { opacity: 0.45; transform: translateY(4px); box-shadow: 0 2px 0 #0c0b1f; }
@@ -259,7 +246,6 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 }
 @media (prefers-reduced-motion: reduce) { .bubble { animation: none; opacity: 1; } }
 
-/* Écran K.O. : tout doit tenir sans scroll, boutons de réaction compris */
 .ko-screen { height: 100vh; height: 100dvh; min-height: 0; gap: clamp(4px, 1.2dvh, 12px); padding-top: 14px; padding-bottom: 14px; overflow: hidden; }
 .ko-screen .ko-title { font-size: clamp(2.6rem, 9dvh, 5.5rem); }
 .ko-screen p { margin: 0; }
@@ -269,7 +255,6 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .ko-screen .reaction-btn { padding: clamp(10px, 2.2dvh, 18px) 4px; }
 @media (max-height: 600px) { .ko-hint { display: none; } }
 
-/* Réglages de partie (lobby) */
 .settings { display: flex; gap: 28px; align-items: flex-end; }
 .setting { display: flex; flex-direction: column; gap: 8px; }
 .stepper, .segmented { display: flex; align-items: center; background: var(--surface); border-radius: 14px; padding: 4px; gap: 4px; }
@@ -279,3 +264,7 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .stepper b { font-family: var(--display); font-weight: 400; font-size: 1.5rem; min-width: 2ch; text-align: center; }
 .segmented button.active { background: var(--accent); color: var(--bg); }
 .stepper button:hover:not(:disabled), .segmented button:hover:not(.active) { background: var(--surface-2); }
+
+.lang-switch { position: fixed; top: 12px; right: 12px; z-index: 5; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface); }
+.lang-switch button { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 700; font-size: 0.8rem; padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+.lang-switch button.active { background: var(--accent); color: var(--bg); }
