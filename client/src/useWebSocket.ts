@@ -20,14 +20,34 @@ export function useWebSocket(onMessage: (msg: ServerMessage) => void) {
     });
 
     useEffect(() => {
-        const ws = new WebSocket(WS_URL);
-        wsRef.current = ws;
+        let unmounted = false;
+        let opened = false;
+        let retry: number | undefined;
+        let ws: WebSocket;
 
-        ws.onopen = () => setConnected(true);
-        ws.onclose = () => setConnected(false);
-        ws.onmessage = (event) => handlerRef.current(JSON.parse(event.data));
+        const connect = () => {
+            ws = new WebSocket(WS_URL);
+            wsRef.current = ws;
+            ws.onopen = () => {
+                opened = true;
+                setConnected(true);
+            };
+            ws.onclose = () => {
+                setConnected(false);
+                // Serveur en veille (Render gratuit : ~1 min au réveil) : on réessaie tant que la
+                // 1re connexion n'a pas abouti. Après une coupure en cours de partie, l'état serveur
+                // est perdu (salle supprimée / joueur éliminé) : on ne se reconnecte pas en silence.
+                if (!unmounted && !opened) retry = window.setTimeout(connect, 2000);
+            };
+            ws.onmessage = (event) => handlerRef.current(JSON.parse(event.data));
+        };
+        connect();
 
-        return () => ws.close();
+        return () => {
+            unmounted = true;
+            clearTimeout(retry);
+            ws.close();
+        };
     }, []);
 
     const sendMessage = useCallback((payload: object) => {

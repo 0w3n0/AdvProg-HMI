@@ -15,9 +15,13 @@ import com.lastphonestanding.room.RoomRegistry;
 import com.lastphonestanding.room.RoomState;
 
 import java.net.InetSocketAddress;
+import java.util.List;
 
 
 public class LastPhoneStandingServer extends WebSocketServer {
+
+    private static final List<String> REACTIONS = List.of("allez", "ouah", "nooon");
+    private static final long REACTION_INTERVAL_MS = 700;
 
     private final Gson gson = new Gson();
     // Le registre qui stocke et gère toutes les rooms en mémoire
@@ -122,6 +126,20 @@ public class LastPhoneStandingServer extends WebSocketServer {
                     conn.send(startStr);
                     for (Player p : r.getPlayers().values()) p.send(startStr);
                     sendPlayerListUpdate(r);
+                    break;
+                }
+
+                case "reaction": {
+                    // Depuis les tribunes : seuls les joueurs K.O. réagissent, pendant la manche
+                    Room r = registry.roomOf(conn);
+                    Player p = r == null ? null : r.playerOf(conn);
+                    String reaction = getString(jsonMessage, "reaction");
+                    if (p == null || p.isAlive() || r.getState() != RoomState.IN_ROUND) break;
+                    if (!REACTIONS.contains(reaction) || !p.tryReact(System.currentTimeMillis(), REACTION_INTERVAL_MS)) break;
+                    JsonObject out = playerJson(p);
+                    out.addProperty("type", "reaction");
+                    out.addProperty("reaction", reaction);
+                    if (r.getHostConnection().isOpen()) r.getHostConnection().send(out.toString());
                     break;
                 }
 

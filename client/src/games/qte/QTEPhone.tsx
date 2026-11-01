@@ -144,7 +144,7 @@ function ShapeQte({ qte, color, elapsed, onAnswer }: Props<"shape"> & { onAnswer
             </svg>
             <h2 className="qte-title">{qte.shape.toUpperCase()}</h2>
             <p className="qte-sub">Appuie sur la bonne forme</p>
-            <div className="pad-grid" style={{ marginTop: 24 }}>
+            <div className="pad-grid">
                 {SHAPES.map(s => (
                     <button key={s} aria-label={s} className="btn-pad" onPointerDown={() => onAnswer(s)}>
                         <ShapeIcon shape={s} size={64} />

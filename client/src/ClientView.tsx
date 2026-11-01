@@ -4,7 +4,8 @@ import { GAMES } from "./games";
 import type { PlayerInfo } from "./games/types";
 import { PLAYER_COLORS, colorOf, type ColorId } from "./colors";
 import { PhoneAvatar } from "./components/art";
-import { getPhoneSound, setPhoneSound } from "./feedback";
+import { getPhoneSound, phoneFeedback, setPhoneSound } from "./feedback";
+import { REACTIONS, REACTION_COOLDOWN_MS, type ReactionId } from "./reactions";
 
 interface ClientViewProps {
     initialRoomCode?: string;
@@ -28,6 +29,7 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
     const [ko, setKo] = useState<{ count: number; summary: ReactNode } | null>(null);
     const [myResult, setMyResult] = useState<RankEntry | null>(null);
     const [phoneSound, setPhoneSoundState] = useState(getPhoneSound);
+    const [reactionCooldown, setReactionCooldown] = useState(false);
 
     const { connected, sendMessage } = useWebSocket((msg: ServerMessage) => {
         if (msg.type === "room_info") {
@@ -64,6 +66,13 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
         if (connected && !joined && roomCode.length === 4) sendMessage({ type: "room_info", roomCode });
     }, [connected, joined, roomCode, sendMessage, roomInfoTick]);
 
+    const react = (reaction: ReactionId) => {
+        sendMessage({ type: "reaction", reaction });
+        phoneFeedback("reaction"); // la bulle est sur l'écran partagé : le téléphone confirme dans la main
+        setReactionCooldown(true);
+        setTimeout(() => setReactionCooldown(false), REACTION_COOLDOWN_MS);
+    };
+
     const handleJoin = () => {
         if (!name.trim() || roomCode.length !== 4) return;
         sendMessage({ type: "join_room", roomCode, name, color });
@@ -93,10 +102,10 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
         // Ceux déjà passés devant moi : au mieux, je finis juste derrière eux
         const bestRank = 1 + players.filter(p => p.id !== myId && p.progress > ko.count).length;
         return (
-            <div className="phone-screen center-col ko-enter" style={{ justifyContent: "center" }}>
+            <div className="phone-screen center-col ko-enter ko-screen">
                 <div className="fx fx-ko strong" />
                 <Cracks />
-                <PhoneAvatar color={myColor} ko size={190} tilt={-12} />
+                <PhoneAvatar color={myColor} ko size={190} tilt={-12} style={{ height: "clamp(56px, 14dvh, 190px)", width: "auto" }} />
                 <h1 className="ko-title">K.O.</h1>
                 <p style={{ fontSize: "1.2rem", margin: 0 }}>{ko.summary}</p>
                 <div className="stat-cards" style={{ marginTop: 12 }}>
@@ -115,6 +124,15 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
                     <Monitor />
                     <span><b>Ne pars pas !</b> La fin se joue sur l'écran principal.</span>
                 </div>
+                <span className="label" style={{ marginTop: "auto" }}>Réagis depuis les tribunes</span>
+                <div className="reaction-row">
+                    {(Object.keys(REACTIONS) as ReactionId[]).map(id => (
+                        <button key={id} className="btn-pad reaction-btn" disabled={reactionCooldown} onClick={() => react(id)}>
+                            {REACTIONS[id]}
+                        </button>
+                    ))}
+                </div>
+                <p className="hint ko-hint">Tes réactions s'affichent sur l'écran principal</p>
             </div>
         );
     }
@@ -181,7 +199,7 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
             <p className="hint">Grisé = déjà pris par un autre joueur</p>
 
             {error && <p className="error">{error}</p>}
-            {!connected && <p className="hint">Connexion au serveur…</p>}
+            {!connected && <p className="hint">Connexion au serveur… (jusqu'à une minute s'il se réveille)</p>}
 
             <button className="btn-primary" style={{ marginTop: "auto", width: "100%" }} onClick={handleJoin}
                 disabled={!connected || !name.trim() || roomCode.length !== 4}>
