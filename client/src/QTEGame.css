@@ -1,0 +1,235 @@
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+/* Couleurs et polices reprises de la maquette (page 8) */
+.qte {
+  --qte-bg: #13112a;
+  --qte-frame: #2c2752;
+  --qte-field: #1b1838;
+  --qte-card: #23204a;
+  --qte-text: #f5efe0;
+  --qte-muted: #a9a3c9;
+  --qte-yellow: #ffd23f;
+  --qte-ink: #14112a;
+  --qte-great: #3bb8ff;
+  --qte-good: #2fe0a0;
+  --qte-ok: #ff8a3d;
+  --qte-ko: #ff5a5f;
+  --qte-display: 'Bungee', system-ui, sans-serif;
+  --qte-body: 'Space Grotesk', system-ui, 'Segoe UI', sans-serif;
+
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  background: var(--qte-bg);
+  color: var(--qte-text);
+  font-family: var(--qte-body);
+  text-align: left;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none; /* Empêche le zoom/scroll accidentel sur mobile */
+}
+
+.qte__screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  padding: 20px 16px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 480px) {
+  .qte__screen {
+    border-inline: 6px solid var(--qte-frame);
+  }
+}
+
+/* En-tête : joueur, combo, score */
+.qte__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qte__player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px 6px 6px;
+  border-radius: 999px;
+  background: var(--qte-card);
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.qte__avatar {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--qte-yellow);
+}
+
+/* Les deux yeux de l'avatar */
+.qte__avatar::before,
+.qte__avatar::after {
+  content: '';
+  position: absolute;
+  top: 11px;
+  width: 4px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--qte-ink);
+}
+.qte__avatar::before { left: 10px; }
+.qte__avatar::after { right: 10px; }
+
+.qte__stats {
+  display: flex;
+  gap: 20px;
+}
+
+.qte__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.qte__stat-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--qte-muted);
+}
+
+.qte__stat-value {
+  font-family: var(--qte-display);
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+/* Titre */
+.qte__heading {
+  text-align: center;
+}
+
+.qte .qte__title {
+  margin: 0 0 4px;
+  font-family: var(--qte-display);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--qte-text);
+}
+
+.qte__subtitle {
+  font-size: 15px;
+  color: var(--qte-muted);
+}
+
+/* Zone de jeu */
+.qte__field {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--qte-field);
+  cursor: pointer;
+}
+
+.qte__circle,
+.qte__ring,
+.qte__feedback {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* 96px = 2 x CIRCLE_RADIUS dans QTEGame.tsx */
+.qte__circle {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  box-sizing: border-box;
+  border: 6px solid var(--qte-text);
+  border-radius: 50%;
+  background: var(--qte-yellow);
+  box-shadow: 0 0 0 3px var(--qte-ink);
+  color: var(--qte-ink);
+  font-family: var(--qte-display);
+  font-size: 34px;
+  animation: qte-pop-in 120ms ease-out;
+}
+
+.qte__circle--ko {
+  background: var(--qte-ko);
+  animation: qte-shake 300ms ease-in-out;
+}
+
+.qte__ring {
+  box-sizing: border-box;
+  border: 4px solid var(--qte-yellow);
+  border-radius: 50%;
+}
+
+.qte__feedback {
+  font-family: var(--qte-display);
+  font-size: 32px;
+  animation: qte-float 250ms ease-out forwards;
+}
+
+.qte__feedback--great { color: var(--qte-great); }
+.qte__feedback--good { color: var(--qte-good); }
+.qte__feedback--ok { color: var(--qte-ok); }
+
+/* Légende des points */
+.qte__legend {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.qte__legend-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 4px;
+  border-radius: 14px;
+  background: var(--qte-card);
+}
+
+.qte__legend-points {
+  font-family: var(--qte-display);
+  font-size: 22px;
+}
+
+.qte__legend-points--great { color: var(--qte-great); }
+.qte__legend-points--good { color: var(--qte-good); }
+.qte__legend-points--ok { color: var(--qte-ok); }
+
+.qte__legend-caption {
+  font-size: 13px;
+  color: var(--qte-muted);
+}
+
+@keyframes qte-pop-in {
+  from { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+}
+
+@keyframes qte-float {
+  from { transform: translate(-50%, -50%) scale(0.8); }
+  to { transform: translate(-50%, -90%) scale(1.1); opacity: 0.3; }
+}
+
+@keyframes qte-shake {
+  25% { transform: translate(-56%, -50%); }
+  75% { transform: translate(-44%, -50%); }
+}

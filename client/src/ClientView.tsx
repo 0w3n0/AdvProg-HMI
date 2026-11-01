@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useWebSocket } from "./useWebSocket";
-import { QTEGame } from "./QTEGame";
+import { QTEGame, type QTEResult } from "./QTEGame";
 
 interface ClientViewProps {
     initialRoomCode?: string;
@@ -15,7 +15,7 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
     const [error, setError] = useState("");
     
     // État local pour gérer l'élimination (Phase 3)
-    const [finalLevel, setFinalLevel] = useState<number | null>(null);
+    const [finalResult, setFinalResult] = useState<QTEResult | null>(null);
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -27,7 +27,7 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
             setError(lastMessage.message);
         } else if (lastMessage.type === "game_start") {
             setGameState("playing");
-            setFinalLevel(null); // On remet à zéro en cas de nouvelle partie
+            setFinalResult(null); // On remet à zéro en cas de nouvelle partie
         }
     }, [lastMessage]);
 
@@ -43,12 +43,12 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
     if (gameState === "playing") {
         return (
             <div style={{ backgroundColor: "#222", color: "white", minHeight: "100vh" }}>
-                {finalLevel === null ? (
-                    <QTEGame onEliminated={(level) => setFinalLevel(level)} />
+                {finalResult === null ? (
+                    <QTEGame playerName={name} onEliminated={(result) => setFinalResult(result)} />
                 ) : (
                     <div style={{ height: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
                         <h1 style={{ color: "#ef4444", fontSize: "3rem" }}>Éliminé !</h1>
-                        <h2>Score : {finalLevel - 1} QTE(s) réussi(s)</h2>
+                        <h2>Tu as tenu {finalResult.inputs} input(s) · score {finalResult.score}</h2>
                         <p style={{ marginTop: "20px", opacity: 0.7 }}>En attente de la fin de la manche...</p>
                     </div>
                 )}
