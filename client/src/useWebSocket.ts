@@ -9,8 +9,10 @@ export type ServerMessage = any;
 /**
  * onMessage est appelé pour CHAQUE message reçu (un état "dernier message"
  * en perdrait quand plusieurs arrivent dans le même rendu).
+ * reconnect : se reconnecte aussi après une coupure (téléphones : ils envoient ensuite « rejoin »).
+ * Pas l'hôte : sa salle est supprimée dès qu'il se déconnecte.
  */
-export function useWebSocket(onMessage: (msg: ServerMessage) => void) {
+export function useWebSocket(onMessage: (msg: ServerMessage) => void, reconnect = false) {
     const wsRef = useRef<WebSocket | null>(null);
     const handlerRef = useRef(onMessage);
     const [connected, setConnected] = useState(false);
@@ -35,9 +37,8 @@ export function useWebSocket(onMessage: (msg: ServerMessage) => void) {
             ws.onclose = () => {
                 setConnected(false);
                 // Serveur en veille (Render gratuit : ~1 min au réveil) : on réessaie tant que la
-                // 1re connexion n'a pas abouti. Après une coupure en cours de partie, l'état serveur
-                // est perdu (salle supprimée / joueur éliminé) : on ne se reconnecte pas en silence.
-                if (!unmounted && !opened) retry = window.setTimeout(connect, 2000);
+                // 1re connexion n'a pas abouti, et après chaque coupure si reconnect.
+                if (!unmounted && (!opened || reconnect)) retry = window.setTimeout(connect, 2000);
             };
             ws.onmessage = (event) => handlerRef.current(JSON.parse(event.data));
         };
@@ -48,7 +49,7 @@ export function useWebSocket(onMessage: (msg: ServerMessage) => void) {
             clearTimeout(retry);
             ws.close();
         };
-    }, []);
+    }, [reconnect]);
 
     const sendMessage = useCallback((payload: object) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
