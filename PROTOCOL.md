@@ -215,7 +215,7 @@ serveur est transmis au mini-jeu (`MiniGame.onPlayerMessage`). QTE Survival : `p
 ## Phase 6 (maquettes)
 
 ### `join_room` (complété)
-`color` obligatoire, parmi `red yellow purple green blue orange pink lime` (codes hex : `client/src/colors.ts`).
+`color` obligatoire, parmi `red yellow purple green blue orange pink lime` (codes hex : `client/src/feedback.ts`).
 Erreurs en plus : `Choisis une couleur`, `Couleur déjà prise`.
 ```json
 { "type": "join_room", "roomCode": "AB12", "name": "Alice", "color": "yellow" }

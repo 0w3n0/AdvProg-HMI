@@ -5,15 +5,13 @@ import org.java_websocket.WebSocket;
 public class Player {
     private final String id;
     private final String name;
-    private WebSocket connection; // remplacée quand le téléphone se reconnecte (rejoin)
-    // Secret connu du seul téléphone (l'id, lui, est diffusé à tous) : prouve qui revient
+    private WebSocket connection;
     private final String token = java.util.UUID.randomUUID().toString();
-    // Un joueur déconnecté en pleine manche reste dans la room, mais éliminé
     private boolean alive = true;
-    private int progress = 0; // inputs réussis dans la manche en cours
-    private int score = 0;    // cumulé sur toutes les manches
-    private String color = ""; // id de couleur (voir RoomRegistry.COLORS)
-    private long lastReactionAt = 0; // anti-spam des réactions (ms)
+    private int progress = 0;
+    private int score = 0;
+    private String color = "";
+    private long lastReactionAt = 0;
 
     public Player(String id, String name, WebSocket connection) {
         this.id = id;
@@ -37,14 +35,12 @@ public class Player {
     public String getColor() { return color; }
     public void setColor(String color) { this.color = color; }
 
-    /** @return true si la réaction est acceptée (au plus une toutes les intervalMs). */
     public boolean tryReact(long now, long intervalMs) {
         if (now - lastReactionAt < intervalMs) return false;
         lastReactionAt = now;
         return true;
     }
 
-    /** Envoie sans planter si le téléphone s'est déjà déconnecté. */
     public void send(String message) {
         if (connection.isOpen()) connection.send(message);
     }

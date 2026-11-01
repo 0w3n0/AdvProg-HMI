@@ -1,5 +1,6 @@
 package com.lastphonestanding.room;
 
+import com.lastphonestanding.room.Room.RoomState;
 import org.java_websocket.WebSocket;
 import java.security.SecureRandom;
 import java.util.HashMap;
@@ -7,20 +8,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Pas thread-safe : le serveur sérialise tous les appels (méthodes synchronized). */
 public class RoomRegistry {
 
-    // Pas de O/0/I/1 : évite la confusion à l'oral quand on annonce le code
     private static final String CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CODE_LENGTH = 4;
     public static final int MAX_PLAYERS = 8;
     public static final int MAX_NAME_LENGTH = 16;
-    // Une couleur par joueur ; les codes hex sont côté client (client/src/colors.ts)
     public static final List<String> COLORS = List.of("red", "yellow", "purple", "green", "blue", "orange", "pink", "lime");
     private final SecureRandom random = new SecureRandom();
 
     private final Map<String, Room> roomsByCode = new HashMap<>();
-    // Permet de retrouver la room d'une connexion qui se déconnecte
     private final Map<WebSocket, String> roomCodeByConnection = new HashMap<>();
 
     public Room createRoom(WebSocket hostConnection) {
@@ -35,7 +32,6 @@ public class RoomRegistry {
         return roomsByCode.get(roomCode);
     }
 
-    /** @throws IllegalArgumentException avec un message affichable au joueur */
     public Player joinRoom(String roomCode, String rawName, String color, WebSocket connection) {
         Room room = roomsByCode.get(roomCode);
         if (room == null) throw new IllegalArgumentException("Salle introuvable");
@@ -59,11 +55,6 @@ public class RoomRegistry {
         return player;
     }
 
-    /**
-     * Un téléphone revient (rechargement, veille, réseau) : il récupère sa place et son score.
-     * En pleine manche il reste éliminé de cette manche (règle de déconnexion) et rejoue à la suivante.
-     * @throws IllegalArgumentException si la salle ou la session n'existe plus
-     */
     public Player rejoinRoom(String roomCode, String token, WebSocket connection) {
         Room room = roomsByCode.get(roomCode);
         if (room == null) throw new IllegalArgumentException("Salle introuvable");
@@ -73,19 +64,14 @@ public class RoomRegistry {
             .orElseThrow(() -> new IllegalArgumentException("Session expirée"));
 
         WebSocket old = player.getConnection();
-        roomCodeByConnection.remove(old); // son onClose ne touchera plus à rien
+        roomCodeByConnection.remove(old);
         if (room.getState() == RoomState.IN_ROUND) room.getGame().onDisconnect(player);
         player.setConnection(connection);
         roomCodeByConnection.put(connection, roomCode);
-        if (old != null && old.isOpen()) old.close(); // ancien onglet encore ouvert
+        if (old != null && old.isOpen()) old.close();
         return player;
     }
 
-    /**
-     * À appeler depuis onClose(). Si c'est l'hôte, la room est supprimée
-     * (l'appelant prévient les joueurs). Sinon : retiré en lobby, éliminé en manche,
-     * gardé entre deux manches (pour pouvoir revenir ; purgé au lancement suivant s'il n'est pas revenu).
-     */
     public Room handleDisconnect(WebSocket connection) {
         String roomCode = roomCodeByConnection.remove(connection);
         if (roomCode == null) return null;

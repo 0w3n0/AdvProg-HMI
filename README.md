@@ -22,13 +22,15 @@ Un mini-jeu ne fournit que ses règles et ses deux écrans.
    - `onPlayerMessage` : reçoit tout message d'un téléphone que le serveur ne gère pas lui-même ;
      mettre à jour `player.setProgress(...)` / `player.setAlive(false)` ;
    - `onDisconnect`, `isOver`, `ranking` (`RankEntry.assign` gère les ex æquo).
-2. L'enregistrer dans `MiniGames.REGISTRY`.
+2. L'enregistrer dans `MiniGame.REGISTRY`.
 
 **Client** (`client/src/games/`)
 1. Créer un dossier avec un composant téléphone (`PhoneGameProps`) et un composant écran
-   partagé (`HostGameProps`), voir `games/types.ts` et le modèle `games/qte/`.
-2. L'enregistrer dans `GAMES` (`games/index.ts`) avec la même clé que `MiniGame.id()`.
-3. L'hôte lance le jeu avec `{ "type": "start_game", "roomCode": "...", "game": "<id>" }`.
+   partagé (`HostGameProps`), voir `games/index.ts` et le modèle `games/qte/`.
+2. L'enregistrer dans `GAMES` (`games/index.ts`) avec la même clé que `MiniGame.id()`,
+   avec sa fiche `HowTo` et son `tagline` en `{ fr, en }`.
+3. Les textes affichés vont dans `client/src/i18n.ts` (français et anglais, bouton FR / EN dans l'appli).
+4. L'hôte lance le jeu avec `{ "type": "start_game", "roomCode": "...", "game": "<id>" }`.
 
 ## Déployer sur Render
 Le fichier [`render.yaml`](render.yaml) décrit deux services gratuits :
