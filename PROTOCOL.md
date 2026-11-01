@@ -252,3 +252,27 @@ Serveur -> Host uniquement (les joueurs encore en vie ne sont pas distraits) :
 ```json
 { "type": "reaction", "id": "uuid-1", "name": "Alice", "color": "red", "progress": 3, "score": 0, "reaction": "ouah" }
 ```
+
+
+---
+
+## Réglages de partie (manches, vitesse de départ)
+
+### `start_game` (complété)
+Depuis le lobby uniquement, `rounds` (1 à 10) et `speed` (vitesse de la 1re manche, 0.5 à 2.5) ;
+valeurs hors bornes ramenées dans les bornes. Ignorés pour les manches suivantes. Après la
+dernière manche → `error` « La partie est terminée : retourne au lobby ».
+```json
+{ "type": "start_game", "roomCode": "AB12", "game": "qte_survival", "rounds": 3, "speed": 1.2 }
+```
+
+### `game_start` / `round_end` (complétés)
+`game_start` ajoute `totalRounds` et `startSpeed` (vitesse de la manche = `startSpeed + 0.2 × (round − 1)`).
+`round_end` ajoute `totalRounds` et `final` (`true` après la dernière manche : classement au score cumulé).
+
+### `back_to_lobby`
+Host -> Serveur, après une manche. Scores remis à zéro, joueurs déconnectés retirés, nouveaux
+joueurs acceptés. Le serveur répond `{ "type": "lobby" }` à l'hôte et aux téléphones.
+```json
+{ "type": "back_to_lobby", "roomCode": "AB12" }
+```

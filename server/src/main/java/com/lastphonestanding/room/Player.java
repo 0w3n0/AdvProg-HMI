@@ -28,6 +28,7 @@ public class Player {
     public void setProgress(int progress) { this.progress = progress; }
     public int getScore() { return score; }
     public void addScore(int points) { score += points; }
+    public void resetScore() { score = 0; }
     public void resetForRound() { alive = true; progress = 0; }
     public String getColor() { return color; }
     public void setColor(String color) { this.color = color; }

@@ -12,6 +12,8 @@ interface RankEntry { id: string; name: string; color: string; progress: number;
 
 const MAX_PLAYERS = 8; // = RoomRegistry.MAX_PLAYERS
 const BUBBLE_MS = 2600; // = durée de l'animation .bubble
+const SPEEDS = [0.8, 1, 1.2, 1.5]; // vitesses de départ proposées (le serveur borne entre 0.5 et 2.5)
+const MAX_ROUNDS = 10; // = Room.MAX_ROUNDS
 
 interface Bubble { id: string; name: string; color: string; text: string; x: number }
 
@@ -20,7 +22,9 @@ export function HostView() {
     const [players, setPlayers] = useState<PlayerInfo[]>([]);
     const [gameState, setGameState] = useState<"lobby" | "playing" | "ended">("lobby");
     const [startMsg, setStartMsg] = useState<ServerMessage>(null);
-    const [ranking, setRanking] = useState<RankEntry[]>([]);
+    const [roundEnd, setRoundEnd] = useState<{ ranking: RankEntry[]; final: boolean; totalRounds: number } | null>(null);
+    const [rounds, setRounds] = useState(3);
+    const [speed, setSpeed] = useState(1);
     const [koOrder, setKoOrder] = useState<string[]>([]);
     const [bubbles, setBubbles] = useState<Bubble[]>([]);
     const [copied, setCopied] = useState(false);
@@ -65,8 +69,12 @@ export function HostView() {
             SOUNDS.pop();
         }
         if (msg.type === "round_end") {
-            setRanking(msg.ranking);
+            setRoundEnd(msg);
             setGameState("ended");
+        }
+        if (msg.type === "lobby") {
+            setRoundEnd(null);
+            setGameState("lobby");
         }
     });
 
@@ -77,7 +85,8 @@ export function HostView() {
 
     const handleStartGame = () => {
         unlockAudio(); // ce clic est le geste qui autorise le son sur l'écran partagé
-        sendMessage({ type: "start_game", roomCode, game: DEFAULT_GAME });
+        // rounds / speed ne sont pris en compte par le serveur qu'au lancement depuis le lobby
+        sendMessage({ type: "start_game", roomCode, game: DEFAULT_GAME, rounds, speed });
     };
 
     if (!roomCode) {
@@ -106,8 +115,11 @@ export function HostView() {
         );
     }
 
-    if (gameState === "ended") {
-        return <Results round={startMsg?.round} ranking={ranking} onNext={handleStartGame} />;
+    if (gameState === "ended" && roundEnd) {
+        return (
+            <Results round={startMsg?.round} {...roundEnd}
+                onNext={handleStartGame} onLobby={() => sendMessage({ type: "back_to_lobby", roomCode })} />
+        );
     }
 
     // Lien direct basé sur l'adresse actuelle du Host (http en local, https sur Render)
@@ -165,6 +177,26 @@ export function HostView() {
                 <span className="muted" style={{ fontSize: "1.1rem" }}>
                     Mini-jeu : <b style={{ color: "var(--text)" }}>{lobbyGame.name}</b> — {lobbyGame.tagline}
                 </span>
+                <div className="settings">
+                    <div className="setting">
+                        <span className="label">Manches</span>
+                        <div className="stepper">
+                            <button aria-label="Moins de manches" disabled={rounds <= 1} onClick={() => setRounds(r => r - 1)}>−</button>
+                            <b>{rounds}</b>
+                            <button aria-label="Plus de manches" disabled={rounds >= MAX_ROUNDS} onClick={() => setRounds(r => r + 1)}>+</button>
+                        </div>
+                    </div>
+                    <div className="setting">
+                        <span className="label">Vitesse de départ</span>
+                        <div className="segmented" role="radiogroup" aria-label="Vitesse de départ">
+                            {SPEEDS.map(s => (
+                                <button key={s} role="radio" aria-checked={s === speed} className={s === speed ? "active" : undefined} onClick={() => setSpeed(s)}>
+                                    ×{s.toFixed(1)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
                 <button className="btn-primary" onClick={handleStartGame} disabled={players.length === 0}>LANCER LA PARTIE</button>
             </footer>
         </div>
@@ -180,9 +212,22 @@ const CONFETTI = [
     { left: "7%", top: "35%", c: "#ff8a3d", w: 12, h: 12, r: 0 },
 ];
 
-/** Fin de manche (maquette page 3) : podium + classement complet. */
-function Results({ round, ranking, onNext }: { round?: number; ranking: RankEntry[]; onNext: () => void }) {
+/** Classement final au score cumulé ; même score = même rang. */
+function rankByScore(ranking: RankEntry[]): RankEntry[] {
+    const sorted = [...ranking].sort((a, b) => b.score - a.score);
+    const out: RankEntry[] = [];
+    sorted.forEach((e, i) => out.push({ ...e, rank: i > 0 && sorted[i - 1].score === e.score ? out[i - 1].rank : i + 1 }));
+    return out;
+}
+
+/** Fin de manche (maquette page 3) ou, après la dernière manche, fin de partie au score cumulé. */
+function Results({ round, ranking: roundRanking, final, totalRounds, onNext, onLobby }: {
+    round?: number; ranking: RankEntry[]; final: boolean; totalRounds: number; onNext: () => void; onLobby: () => void;
+}) {
+    const ranking = final ? rankByScore(roundRanking) : roundRanking;
     const winner = ranking[0];
+    // Ce qui est affiché pour chaque joueur : inputs de la manche, ou score total en fin de partie
+    const metric = (e: RankEntry) => (final ? `${e.score} pts` : `${e.progress} inputs`);
     // Fanfare au moment où le 1er monte sur le podium (délai = animation .podium-col.first)
     useEffect(() => {
         const id = setTimeout(SOUNDS.fanfare, 1200);
@@ -203,10 +248,11 @@ function Results({ round, ranking, onNext }: { round?: number; ranking: RankEntr
                 <span key={i} className="confetti" style={{ left: c.left, top: c.top, width: c.w, height: c.h, background: c.c, "--r": `${c.r}deg`, animationDelay: `${i * 0.4}s` } as CSSProperties} />
             ))}
             <div className="results-main">
-                <div className="label">Manche {round} — terminée</div>
+                <div className="label">{final ? `Partie terminée — ${totalRounds} manche${totalRounds > 1 ? "s" : ""}` : `Manche ${round} / ${totalRounds} — terminée`}</div>
                 {winner && (
                     <h1 className="results-title">
-                        <span style={{ color: colorOf(winner.color) }}>{winner.name.toUpperCase()}</span> EST LE DERNIER<br />TÉLÉPHONE DEBOUT
+                        <span style={{ color: colorOf(winner.color) }}>{winner.name.toUpperCase()}</span>
+                        {final ? <> REMPORTE<br />LA PARTIE !</> : <> EST LE DERNIER<br />TÉLÉPHONE DEBOUT</>}
                     </h1>
                 )}
                 <div className="podium">
@@ -229,8 +275,8 @@ function Results({ round, ranking, onNext }: { round?: number; ranking: RankEntr
                                     {[
                                         g.length > 1 && "ex æquo",
                                         // Le dernier debout peut partager la 1re place avec plus d'inputs que lui
-                                        g.every(e => e.progress === g[0].progress) && `${g[0].progress} inputs`,
-                                        g[0] === winner && "dernier debout",
+                                        g.every(e => metric(e) === metric(g[0])) && metric(g[0]),
+                                        !final && g[0] === winner && "dernier debout",
                                     ].filter(Boolean).join(" · ")}
                                 </div>
                             </div>
@@ -241,7 +287,9 @@ function Results({ round, ranking, onNext }: { round?: number; ranking: RankEntr
 
             <aside className="ranking-card">
                 <h2 className="section-title">CLASSEMENT</h2>
-                <p className="muted" style={{ margin: 0 }}>Classé selon la distance parcourue, pas l'ordre d'élimination.</p>
+                <p className="muted" style={{ margin: 0 }}>
+                    {final ? "Classé selon le score cumulé sur toutes les manches." : "Classé selon la distance parcourue, pas l'ordre d'élimination."}
+                </p>
                 {ranking.map(e => {
                     const tied = ranking.some(o => o !== e && o.rank === e.rank);
                     return (
@@ -249,13 +297,21 @@ function Results({ round, ranking, onNext }: { round?: number; ranking: RankEntr
                             <span className="num">{e.rank}{tied ? "=" : ""}</span>
                             <span className="dot" style={{ background: colorOf(e.color) }} />
                             <span className="grow">{e.name}</span>
-                            <span className="muted">{e.progress} inputs</span>
-                            <span className="pts">+{e.points}</span>
-                            {(round ?? 1) > 1 && <span className="muted" title="Score cumulé">= {e.score}</span>}
+                            {final ? (
+                                <span className="pts">{e.score} pts</span>
+                            ) : (
+                                <>
+                                    <span className="muted">{e.progress} inputs</span>
+                                    <span className="pts">+{e.points}</span>
+                                    {(round ?? 1) > 1 && <span className="muted" title="Score cumulé">= {e.score}</span>}
+                                </>
+                            )}
                         </div>
                     );
                 })}
-                <button className="btn-primary" style={{ marginTop: "auto" }} onClick={onNext}>MANCHE SUIVANTE</button>
+                {final
+                    ? <button className="btn-primary" style={{ marginTop: "auto" }} onClick={onLobby}>RETOUR AU LOBBY</button>
+                    : <button className="btn-primary" style={{ marginTop: "auto" }} onClick={onNext}>MANCHE SUIVANTE</button>}
             </aside>
         </div>
     );

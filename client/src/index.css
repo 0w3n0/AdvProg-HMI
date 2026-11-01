@@ -101,7 +101,7 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .cracks { position: fixed; inset: 0; pointer-events: none; opacity: 0.35; z-index: -1; }
 
 /* ---------- Écran partagé ---------- */
-.host-screen { min-height: 100dvh; padding: 40px 56px; display: flex; flex-direction: column; gap: 28px; }
+.host-screen { min-height: 100dvh; padding: 32px 56px; display: flex; flex-direction: column; gap: 22px; }
 .host-logo { font-family: var(--display); font-size: clamp(2.5rem, 5vw, 4.5rem); line-height: 0.95; }
 .host-logo span { color: var(--accent); }
 .join-card { display: flex; gap: 28px; align-items: center; background: var(--surface); border-radius: 28px; padding: 24px 28px; max-width: 55%; }
@@ -117,7 +117,7 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 
 .section-title { font-family: var(--display); font-size: 1.6rem; }
 .section-title span { color: var(--muted); }
-.slots { display: grid; grid-template-columns: repeat(8, 1fr); gap: 18px; flex: 1; min-height: 260px; }
+.slots { display: grid; grid-template-columns: repeat(8, 1fr); gap: 18px; flex: 1; min-height: 190px; }
 .slot { background: var(--surface); border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px 8px; min-width: 0; }
 .slot b { font-size: 1.25rem; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; }
 .slot.empty { background: none; border: 3px dashed var(--border); color: var(--muted); }
@@ -261,3 +261,14 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .ko-screen .stat-cards .card b { font-size: clamp(1.5rem, 4.5dvh, 2.2rem); margin-top: 2px; }
 .ko-screen .reaction-btn { padding: clamp(10px, 2.2dvh, 18px) 4px; }
 @media (max-height: 600px) { .ko-hint { display: none; } }
+
+/* Réglages de partie (lobby) */
+.settings { display: flex; gap: 28px; align-items: flex-end; }
+.setting { display: flex; flex-direction: column; gap: 8px; }
+.stepper, .segmented { display: flex; align-items: center; background: var(--surface); border-radius: 14px; padding: 4px; gap: 4px; }
+.stepper button, .segmented button { background: none; border: none; border-radius: 10px; font-family: var(--display); font-size: 1.1rem; padding: 8px 14px; }
+.stepper button { font-size: 1.4rem; width: 44px; }
+.stepper button:disabled { opacity: 0.3; }
+.stepper b { font-family: var(--display); font-weight: 400; font-size: 1.5rem; min-width: 2ch; text-align: center; }
+.segmented button.active { background: var(--accent); color: var(--bg); }
+.stepper button:hover:not(:disabled), .segmented button:hover:not(.active) { background: var(--surface-2); }
