@@ -37,4 +37,6 @@ export interface GameDefinition {
     tagline: string;
     Phone: ComponentType<PhoneGameProps>;
     Host: ComponentType<HostGameProps>;
+    /** Fiche « comment jouer » sur le téléphone, pendant l'attente. */
+    HowTo: ComponentType;
 }

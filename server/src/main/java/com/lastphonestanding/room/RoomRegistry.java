@@ -60,8 +60,31 @@ public class RoomRegistry {
     }
 
     /**
+     * Un téléphone revient (rechargement, veille, réseau) : il récupère sa place et son score.
+     * En pleine manche il reste éliminé de cette manche (règle de déconnexion) et rejoue à la suivante.
+     * @throws IllegalArgumentException si la salle ou la session n'existe plus
+     */
+    public Player rejoinRoom(String roomCode, String token, WebSocket connection) {
+        Room room = roomsByCode.get(roomCode);
+        if (room == null) throw new IllegalArgumentException("Salle introuvable");
+        if (roomCodeByConnection.containsKey(connection)) throw new IllegalArgumentException("Déjà dans une salle");
+        Player player = room.getPlayers().values().stream()
+            .filter(p -> p.getToken().equals(token)).findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Session expirée"));
+
+        WebSocket old = player.getConnection();
+        roomCodeByConnection.remove(old); // son onClose ne touchera plus à rien
+        if (room.getState() == RoomState.IN_ROUND) room.getGame().onDisconnect(player);
+        player.setConnection(connection);
+        roomCodeByConnection.put(connection, roomCode);
+        if (old != null && old.isOpen()) old.close(); // ancien onglet encore ouvert
+        return player;
+    }
+
+    /**
      * À appeler depuis onClose(). Si c'est l'hôte, la room est supprimée
-     * (l'appelant prévient les joueurs). Sinon : retiré en lobby, éliminé en manche.
+     * (l'appelant prévient les joueurs). Sinon : retiré en lobby, éliminé en manche,
+     * gardé entre deux manches (pour pouvoir revenir ; purgé au lancement suivant s'il n'est pas revenu).
      */
     public Room handleDisconnect(WebSocket connection) {
         String roomCode = roomCodeByConnection.remove(connection);
@@ -73,7 +96,7 @@ public class RoomRegistry {
         if (room.getHostConnection() == connection) {
             roomsByCode.remove(roomCode);
             for (Player p : room.getPlayers().values()) roomCodeByConnection.remove(p.getConnection());
-        } else if (room.getState() != RoomState.IN_ROUND) {
+        } else if (room.getState() == RoomState.LOBBY) {
             room.removePlayerByConnection(connection);
         } else {
             Player p = room.playerOf(connection);

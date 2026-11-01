@@ -5,7 +5,9 @@ import org.java_websocket.WebSocket;
 public class Player {
     private final String id;
     private final String name;
-    private final WebSocket connection;
+    private WebSocket connection; // remplacée quand le téléphone se reconnecte (rejoin)
+    // Secret connu du seul téléphone (l'id, lui, est diffusé à tous) : prouve qui revient
+    private final String token = java.util.UUID.randomUUID().toString();
     // Un joueur déconnecté en pleine manche reste dans la room, mais éliminé
     private boolean alive = true;
     private int progress = 0; // inputs réussis dans la manche en cours
@@ -22,6 +24,8 @@ public class Player {
     public String getId() { return id; }
     public String getName() { return name; }
     public WebSocket getConnection() { return connection; }
+    public void setConnection(WebSocket connection) { this.connection = connection; }
+    public String getToken() { return token; }
     public boolean isAlive() { return alive; }
     public void setAlive(boolean alive) { this.alive = alive; }
     public int getProgress() { return progress; }

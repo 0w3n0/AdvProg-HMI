@@ -81,11 +81,26 @@ public class LastPhoneStandingServer extends WebSocketServer {
                         sendError(conn, e.getMessage());
                         break;
                     }
-                    JsonObject joinSuccess = new JsonObject();
-                    joinSuccess.addProperty("type", "join_success");
-                    joinSuccess.addProperty("id", joined.getId());
-                    conn.send(joinSuccess.toString());
-                    sendPlayerListUpdate(registry.getRoom(roomCode));
+                    sendJoinSuccess(conn, joined, registry.getRoom(roomCode));
+                    break;
+                }
+
+                case "rejoin": {
+                    // Téléphone rechargé / reconnecté : il présente le jeton reçu au join
+                    String roomCode = getString(jsonMessage, "roomCode").toUpperCase();
+                    Player back;
+                    try {
+                        back = registry.rejoinRoom(roomCode, getString(jsonMessage, "token"), conn);
+                    } catch (IllegalArgumentException e) {
+                        JsonObject failed = new JsonObject();
+                        failed.addProperty("type", "rejoin_failed");
+                        failed.addProperty("message", e.getMessage());
+                        conn.send(failed.toString());
+                        break;
+                    }
+                    Room r = registry.getRoom(roomCode);
+                    sendJoinSuccess(conn, back, r);
+                    checkRoundEnd(r); // il était peut-être le dernier encore « en vie »
                     break;
                 }
 
@@ -197,6 +212,18 @@ public class LastPhoneStandingServer extends WebSocketServer {
         error.addProperty("type", "error");
         error.addProperty("message", message);
         conn.send(error.toString());
+    }
+
+    /** state : le téléphone sait s'il arrive en lobby, en pleine manche (→ tribunes) ou entre deux manches. */
+    private void sendJoinSuccess(WebSocket conn, Player p, Room room) {
+        JsonObject msg = new JsonObject();
+        msg.addProperty("type", "join_success");
+        msg.addProperty("id", p.getId());
+        msg.addProperty("token", p.getToken());
+        msg.addProperty("state", room.getState().name());
+        msg.addProperty("progress", p.getProgress());
+        conn.send(msg.toString());
+        sendPlayerListUpdate(room);
     }
 
     // Host + téléphones (les téléphones K.O. en déduisent leur rang provisoire)

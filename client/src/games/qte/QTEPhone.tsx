@@ -116,6 +116,26 @@ export function QTEPhone({ start: startMsg, me, send, onEliminated: onKo }: Phon
     );
 }
 
+/** Fiche d'explication affichée sur le téléphone en attendant le lancement. */
+export function QTEHowTo() {
+    const shape: Qte = { kind: "shape", shape: "triangle", timeMs: 0 };
+    const skill: Qte = { kind: "skill", zoneStart: 0, zoneWidth: 0, timeMs: 0 };
+    const approach: Qte = { kind: "approach", x: 0, y: 0, tolerance: 0, timeMs: 0 };
+    return (
+        <div className="card howto">
+            <span className="label">Comment jouer</span>
+            <ol>
+                <li><QteIcon qte={shape} /><span><b>Forme</b> : touche la forme demandée</span></li>
+                <li><QteIcon qte={skill} /><span><b>Aiguille</b> : tape dans la zone</span></li>
+                <li><QteIcon qte={approach} /><span><b>Anneau</b> : tape quand il touche le cercle</span></li>
+            </ol>
+            <p>De plus en plus vite. Trop lent ou raté : <b>K.O.</b><br />
+                +1 point par input réussi, le dernier debout gagne.</p>
+            <p className="muted">Joue en regardant ton téléphone.</p>
+        </div>
+    );
+}
+
 /** Aperçu « ENSUITE » : indice d'anticipation sur les 3 prochains inputs. */
 function QteIcon({ qte }: { qte: Qte }) {
     if (qte.kind === "shape") return <ShapeIcon shape={qte.shape} size={24} />;
