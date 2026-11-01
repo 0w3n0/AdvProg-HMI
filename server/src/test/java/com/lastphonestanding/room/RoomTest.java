@@ -1,5 +1,6 @@
 package com.lastphonestanding.room;
 
+import com.lastphonestanding.room.Room.RoomState;
 import com.google.gson.JsonObject;
 import com.lastphonestanding.game.QteSurvival;
 import org.junit.jupiter.api.Test;

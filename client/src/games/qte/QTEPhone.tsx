@@ -1,26 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { qteAt, failAfterMs, roundSpeed, describe, isIntro, SHAPES, type Qte } from "./qte";
-import type { PhoneGameProps } from "../types";
+import { qteAt, failAfterMs, roundSpeed, isIntro, SHAPES, type Qte } from "./qte";
+import type { PhoneGameProps } from "..";
 import { ShapeIcon } from "../../components/art";
 import { phoneFeedback, type PhoneFeedback } from "../../feedback";
+import { useLang } from "../../i18n";
 
-// Même durée que le compte à rebours de l'écran partagé (QTEHost)
 export const COUNTDOWN_MS = 3000;
-// « Réussite de justesse » : dans les 20 % finaux du temps, ou du bord de la zone
 const NEAR = 0.2;
 
-/** Le téléphone juge lui-même le timing (pas d'aller-retour réseau pendant un input). */
 export function QTEPhone({ start: startMsg, me, send, onEliminated: onKo }: PhoneGameProps) {
     const seed: number = startMsg.seed;
     const round: number = startMsg.round;
+    const { t } = useLang();
     const onProgress = (count: number) => send({ type: "progress", count });
     const onEliminated = (count: number, missed: Qte) => {
         send({ type: "eliminated", count });
-        onKo(count, <>Raté au {count + 1}<sup>{count === 0 ? "er" : "e"}</sup> input — c'était <b>{describe(missed)}</b>.</>);
+        onKo(count, <>{t.missed(count + 1)} <b>{t.describe(missed)}</b>.</>);
     };
     const speed = roundSpeed(round, startMsg.startSpeed);
     const [index, setIndex] = useState(0);
-    // Le premier input démarre après le compte à rebours
     const [start, setStart] = useState(() => performance.now() + COUNTDOWN_MS);
     const [now, setNow] = useState(() => performance.now());
     const [fx, setFx] = useState<{ kind: PhoneFeedback; strong: boolean; n: number } | null>(null);
@@ -37,10 +35,9 @@ export function QTEPhone({ start: startMsg, me, send, onEliminated: onKo }: Phon
     }, []);
 
     const finish = (ok: boolean, near = false) => {
-        if (doneRef.current || performance.now() < start) return; // taps pendant le compte à rebours ignorés
+        if (doneRef.current || performance.now() < start) return;
         if (ok) {
             const kind = near ? "near" : "success";
-            // Pas de vibration possible (iOS) => le flash devient plus visible pour compenser
             setFx({ kind, strong: !phoneFeedback(kind), n: index });
             const t = performance.now();
             setIndex(index + 1);
@@ -58,16 +55,15 @@ export function QTEPhone({ start: startMsg, me, send, onEliminated: onKo }: Phon
         if (elapsed > failAfterMs(qte)) finish(false);
     });
 
-    // Temps mesuré au moment exact du tap, pas au dernier rendu
     const tapElapsed = () => performance.now() - start;
     const next = [1, 2, 3].map(k => qteAt(seed, index + k, speed));
 
     if (elapsed < 0) {
         return (
             <div className="phone-screen center-col" style={{ justifyContent: "center" }}>
-                <span className="label">Manche {round} / {startMsg.totalRounds} · vitesse ×{speed.toFixed(1)}</span>
+                <span className="label">{t.roundInfo(round, startMsg.totalRounds, speed.toFixed(1))}</span>
                 <div key={Math.ceil(-elapsed / 1000)} className="countdown">{Math.ceil(-elapsed / 1000)}</div>
-                <p className="muted">Prépare-toi : regarde ton téléphone, pas l'écran !</p>
+                <p className="muted">{t.getReady}</p>
             </div>
         );
     }
@@ -76,7 +72,7 @@ export function QTEPhone({ start: startMsg, me, send, onEliminated: onKo }: Phon
         <div className="phone-screen">
             {fx && (
                 <div key={fx.n} className={`fx fx-${fx.kind}${fx.strong ? " strong" : ""}`}>
-                    {fx.kind === "near" && <span>JUSTE !</span>}
+                    {fx.kind === "near" && <span>{t.close}</span>}
                 </div>
             )}
             <div className="phone-header">
@@ -87,13 +83,13 @@ export function QTEPhone({ start: startMsg, me, send, onEliminated: onKo }: Phon
                 <div className="stat"><small className="label">Inputs</small><b>{index}</b></div>
             </div>
             <div className="next-row">
-                <span className="label">Ensuite</span>
+                <span className="label">{t.next}</span>
                 {next.map((q, i) => (
                     <span key={i} className="next-tile" style={{ opacity: 1 - i * 0.3 }}><QteIcon qte={q} /></span>
                 ))}
             </div>
 
-            {isIntro(index) && <div key={`new-${index}`} className="new-kind">NOUVEAU !</div>}
+            {isIntro(index) && <div key={`new-${index}`} className="new-kind">{t.newKind}</div>}
 
             {qte.kind === "shape" && (
                 <ShapeQte key={index} qte={qte} color={me.color} elapsed={elapsed}
@@ -116,27 +112,26 @@ export function QTEPhone({ start: startMsg, me, send, onEliminated: onKo }: Phon
     );
 }
 
-/** Fiche d'explication affichée sur le téléphone en attendant le lancement. */
 export function QTEHowTo() {
+    const { t } = useLang();
     const shape: Qte = { kind: "shape", shape: "triangle", timeMs: 0 };
     const skill: Qte = { kind: "skill", zoneStart: 0, zoneWidth: 0, timeMs: 0 };
     const approach: Qte = { kind: "approach", x: 0, y: 0, tolerance: 0, timeMs: 0 };
     return (
         <div className="card howto">
-            <span className="label">Comment jouer</span>
+            <span className="label">{t.howTo}</span>
             <ol>
-                <li><QteIcon qte={shape} /><span><b>Forme</b> : touche la forme demandée</span></li>
-                <li><QteIcon qte={skill} /><span><b>Aiguille</b> : tape dans la zone</span></li>
-                <li><QteIcon qte={approach} /><span><b>Anneau</b> : tape quand il touche le cercle</span></li>
+                <li><QteIcon qte={shape} /><span><b>{t.howShape[0]}</b>{t.howShape[1]}</span></li>
+                <li><QteIcon qte={skill} /><span><b>{t.howNeedle[0]}</b>{t.howNeedle[1]}</span></li>
+                <li><QteIcon qte={approach} /><span><b>{t.howRing[0]}</b>{t.howRing[1]}</span></li>
             </ol>
-            <p>De plus en plus vite. Trop lent ou raté : <b>K.O.</b><br />
-                +1 point par input réussi, le dernier debout gagne.</p>
-            <p className="muted">Joue en regardant ton téléphone.</p>
+            <p>{t.faster} <b>K.O.</b><br />
+                {t.pointsRule}</p>
+            <p className="muted">{t.lookPhone}</p>
         </div>
     );
 }
 
-/** Aperçu « ENSUITE » : indice d'anticipation sur les 3 prochains inputs. */
 function QteIcon({ qte }: { qte: Qte }) {
     if (qte.kind === "shape") return <ShapeIcon shape={qte.shape} size={24} />;
     return (
@@ -150,23 +145,23 @@ function QteIcon({ qte }: { qte: Qte }) {
 type Props<K extends Qte["kind"]> = { qte: Extract<Qte, { kind: K }>; color: string; elapsed: number };
 
 function ShapeQte({ qte, color, elapsed, onAnswer }: Props<"shape"> & { onAnswer: (s: string) => void }) {
+    const { t } = useLang();
     const C = 2 * Math.PI * 45;
     const left = Math.max(0, 1 - elapsed / qte.timeMs);
     return (
         <>
             <svg viewBox="0 0 100 100" className="qte-visual">
                 <circle cx="50" cy="50" r="45" fill="none" stroke="#2e2b5c" strokeWidth="7" />
-                {/* Indice d'anticipation : l'anneau rougit et pulse quand le temps presse */}
                 <circle cx="50" cy="50" r="45" fill="none" stroke={left < 0.25 ? "#ff5a5f" : color} strokeWidth="7"
                     className={left < 0.25 ? "pulse" : undefined}
                     strokeDasharray={C} strokeDashoffset={-C * (1 - left)} transform="rotate(-90 50 50)" />
                 <g transform="translate(25 25)"><ShapeIcon shape={qte.shape} size={50} color={color} filled /></g>
             </svg>
-            <h2 className="qte-title">{qte.shape.toUpperCase()}</h2>
-            <p className="qte-sub">Appuie sur la bonne forme</p>
+            <h2 className="qte-title">{t.shapes[qte.shape].toUpperCase()}</h2>
+            <p className="qte-sub">{t.pressShape}</p>
             <div className="pad-grid">
                 {SHAPES.map(s => (
-                    <button key={s} aria-label={s} className="btn-pad" onPointerDown={() => onAnswer(s)}>
+                    <button key={s} aria-label={t.shapes[s]} className="btn-pad" onPointerDown={() => onAnswer(s)}>
                         <ShapeIcon shape={s} size={64} />
                     </button>
                 ))}
@@ -176,12 +171,13 @@ function ShapeQte({ qte, color, elapsed, onAnswer }: Props<"shape"> & { onAnswer
 }
 
 function SkillQte({ qte, color, elapsed, onTap }: Props<"skill"> & { onTap: () => void }) {
+    const { t } = useLang();
     const C = 2 * Math.PI * 80;
     const angle = (360 * elapsed) / qte.timeMs;
     return (
         <>
             <h2 className="qte-title">SKILL CHECK</h2>
-            <p className="qte-sub">Tape quand l'aiguille passe dans la zone</p>
+            <p className="qte-sub">{t.skillHint}</p>
             <svg viewBox="0 0 200 200" className="qte-visual">
                 <circle cx="100" cy="100" r="80" fill="none" stroke="#2e2b5c" strokeWidth="14" />
                 <circle cx="100" cy="100" r="80" fill="none" stroke={color} strokeWidth="14"
@@ -189,19 +185,20 @@ function SkillQte({ qte, color, elapsed, onTap }: Props<"skill"> & { onTap: () =
                 <line x1="100" y1="100" x2="100" y2="14" stroke="#ff5a5f" strokeWidth="5" strokeLinecap="round" transform={`rotate(${angle} 100 100)`} />
                 <circle cx="100" cy="100" r="9" fill="#ff5a5f" />
             </svg>
-            <button className="btn-pad tap-button" onPointerDown={onTap}>TAPE !</button>
+            <button className="btn-pad tap-button" onPointerDown={onTap}>{t.tap}</button>
         </>
     );
 }
 
 function ApproachQte({ qte, color, number, elapsed, onTap }: Props<"approach"> & { number: number; onTap: () => void }) {
+    const { t } = useLang();
     const R = 44;
     const ring = Math.max(0, R * (1 + 2 * (1 - elapsed / qte.timeMs)));
     const at = { position: "absolute" as const, left: `${qte.x * 100}%`, top: `${qte.y * 100}%`, borderRadius: "50%", transform: "translate(-50%, -50%)" };
     return (
         <>
             <h2 className="qte-title">APPROACH CIRCLE</h2>
-            <p className="qte-sub">Tape quand l'anneau touche le bord du cercle</p>
+            <p className="qte-sub">{t.approachHint}</p>
             <div className="approach-area" onPointerDown={onTap}>
                 <div style={{ ...at, width: 2 * R, height: 2 * R, background: color, border: "6px solid #f3f0e8", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--display)", fontSize: "2rem", color: "#12112a" }}>
                     {number}

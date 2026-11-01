@@ -7,16 +7,14 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.lastphonestanding.game.MiniGame;
-import com.lastphonestanding.game.MiniGames;
-import com.lastphonestanding.game.RankEntry;
+import com.lastphonestanding.game.MiniGame.RankEntry;
 import com.lastphonestanding.room.Player;
 import com.lastphonestanding.room.Room;
 import com.lastphonestanding.room.RoomRegistry;
-import com.lastphonestanding.room.RoomState;
+import com.lastphonestanding.room.Room.RoomState;
 
 import java.net.InetSocketAddress;
 import java.util.List;
-
 
 public class LastPhoneStandingServer extends WebSocketServer {
 
@@ -24,7 +22,6 @@ public class LastPhoneStandingServer extends WebSocketServer {
     private static final long REACTION_INTERVAL_MS = 700;
 
     private final Gson gson = new Gson();
-    // Le registre qui stocke et gère toutes les rooms en mémoire
     private final RoomRegistry registry = new RoomRegistry();
 
     public LastPhoneStandingServer(int port) {
@@ -36,7 +33,6 @@ public class LastPhoneStandingServer extends WebSocketServer {
         System.out.println("Client connected: " + conn.getRemoteSocketAddress());
     }
 
-    // synchronized : Java-WebSocket peut appeler onMessage/onClose depuis plusieurs threads
     @Override
     public synchronized void onClose(WebSocket conn, int code, String reason, boolean remote) {
         System.out.println("Client disconnected: " + reason);
@@ -86,7 +82,6 @@ public class LastPhoneStandingServer extends WebSocketServer {
                 }
 
                 case "rejoin": {
-                    // Téléphone rechargé / reconnecté : il présente le jeton reçu au join
                     String roomCode = getString(jsonMessage, "roomCode").toUpperCase();
                     Player back;
                     try {
@@ -100,12 +95,11 @@ public class LastPhoneStandingServer extends WebSocketServer {
                     }
                     Room r = registry.getRoom(roomCode);
                     sendJoinSuccess(conn, back, r);
-                    checkRoundEnd(r); // il était peut-être le dernier encore « en vie »
+                    checkRoundEnd(r);
                     break;
                 }
 
                 case "room_info": {
-                    // Avant de rejoindre : le téléphone grise les couleurs déjà prises
                     Room r = registry.getRoom(getString(jsonMessage, "roomCode").toUpperCase());
                     if (r == null) {
                         sendError(conn, "Salle introuvable");
@@ -120,21 +114,19 @@ public class LastPhoneStandingServer extends WebSocketServer {
 
                 case "start_game": {
                     Room r = registry.getRoom(getString(jsonMessage, "roomCode"));
-                    // Sécurité : seule la connexion hôte de cette room peut lancer
                     if (r == null || r.getHostConnection() != conn) break;
                     if (r.getState() == RoomState.IN_ROUND) break;
                     if (r.getState() == RoomState.ENDED && r.isLastRound()) {
                         sendError(conn, "La partie est terminée : retourne au lobby");
                         break;
                     }
-                    // Les réglages ne se choisissent qu'au lancement depuis le lobby
                     if (r.getState() == RoomState.LOBBY) {
                         r.configure(
                             jsonMessage.has("rounds") ? jsonMessage.get("rounds").getAsInt() : r.getTotalRounds(),
                             jsonMessage.has("speed") ? jsonMessage.get("speed").getAsDouble() : r.getStartSpeed());
                     }
-                    String gameId = jsonMessage.has("game") ? getString(jsonMessage, "game") : MiniGames.DEFAULT;
-                    MiniGame game = MiniGames.create(gameId);
+                    String gameId = jsonMessage.has("game") ? getString(jsonMessage, "game") : MiniGame.DEFAULT;
+                    MiniGame game = MiniGame.create(gameId);
                     if (game == null) {
                         sendError(conn, "Mini-jeu inconnu : " + gameId);
                         break;
@@ -167,7 +159,6 @@ public class LastPhoneStandingServer extends WebSocketServer {
                 }
 
                 case "reaction": {
-                    // Depuis les tribunes : seuls les joueurs K.O. réagissent, pendant la manche
                     Room r = registry.roomOf(conn);
                     Player p = r == null ? null : r.playerOf(conn);
                     String reaction = getString(jsonMessage, "reaction");
@@ -185,7 +176,6 @@ public class LastPhoneStandingServer extends WebSocketServer {
                     break;
 
                 default: {
-                    // Tout autre message d'un téléphone en pleine manche appartient au mini-jeu
                     Room r = registry.roomOf(conn);
                     Player p = r == null ? null : r.playerOf(conn);
                     if (p == null || r.getState() != RoomState.IN_ROUND) {
@@ -214,7 +204,6 @@ public class LastPhoneStandingServer extends WebSocketServer {
         conn.send(error.toString());
     }
 
-    /** state : le téléphone sait s'il arrive en lobby, en pleine manche (→ tribunes) ou entre deux manches. */
     private void sendJoinSuccess(WebSocket conn, Player p, Room room) {
         JsonObject msg = new JsonObject();
         msg.addProperty("type", "join_success");
@@ -226,7 +215,6 @@ public class LastPhoneStandingServer extends WebSocketServer {
         sendPlayerListUpdate(room);
     }
 
-    // Host + téléphones (les téléphones K.O. en déduisent leur rang provisoire)
     private void sendPlayerListUpdate(Room room) {
         JsonObject update = new JsonObject();
         update.addProperty("type", "player_list_update");
@@ -259,7 +247,7 @@ public class LastPhoneStandingServer extends WebSocketServer {
         msg.addProperty("type", "round_end");
         msg.addProperty("round", room.getRound());
         msg.addProperty("totalRounds", room.getTotalRounds());
-        msg.addProperty("final", room.isLastRound()); // dernière manche : classement final au score cumulé
+        msg.addProperty("final", room.isLastRound());
         JsonArray ranking = new JsonArray();
         for (RankEntry e : room.endRound()) {
             JsonObject entry = playerJson(e.player());
@@ -285,7 +273,6 @@ public class LastPhoneStandingServer extends WebSocketServer {
     }
 
     public static void main(String[] args) {
-        // Render (et la plupart des hébergeurs) imposent le port via la variable PORT
         int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
         new LastPhoneStandingServer(port).start();
     }

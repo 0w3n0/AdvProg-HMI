@@ -35,7 +35,6 @@
     </dependencies>
 
     <build>
-        <!-- target/server.jar : un seul jar avec les dépendances (java -jar, utilisé par le Dockerfile) -->
         <finalName>server</finalName>
         <plugins>
             <plugin>
@@ -57,7 +56,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- ./mvnw compile exec:java : lance le serveur sans IDE -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>

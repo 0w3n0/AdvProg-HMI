@@ -1,5 +1,5 @@
-// Illustrations des maquettes, en SVG pour rester nettes sur projecteur comme sur téléphone.
 import type { CSSProperties } from "react";
+import { useLang, type Lang } from "../i18n";
 
 const INK = "#12112a";
 
@@ -57,7 +57,6 @@ export function Crown({ size = 40 }: { size?: number }) {
     );
 }
 
-/** Étoile « K.O.! » de l'écran partagé. */
 export function KoBurst({ size = 200 }: { size?: number }) {
     const points = Array.from({ length: 24 }, (_, i) => {
         const r = i % 2 ? 26 : 48;
@@ -70,5 +69,18 @@ export function KoBurst({ size = 200 }: { size?: number }) {
             <polygon points={points} fill="#ffd43b" />
             <text x="50" y="57" textAnchor="middle" fontFamily="Bungee, sans-serif" fontSize="19" fill={INK} transform="rotate(-12 50 50)">K.O.!</text>
         </svg>
+    );
+}
+
+export function LangSwitch({ style }: { style?: CSSProperties }) {
+    const { lang, setLang } = useLang();
+    return (
+        <div className="lang-switch" role="group" aria-label="Language" style={style}>
+            {(["fr", "en"] as Lang[]).map(l => (
+                <button key={l} aria-pressed={l === lang} className={l === lang ? "active" : undefined} onClick={() => setLang(l)}>
+                    {l.toUpperCase()}
+                </button>
+            ))}
+        </div>
     );
 }

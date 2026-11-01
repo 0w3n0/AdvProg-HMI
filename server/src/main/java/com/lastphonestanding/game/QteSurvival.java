@@ -10,16 +10,11 @@ import java.util.List;
 import java.util.Random;
 import java.util.function.ToIntFunction;
 
-/**
- * QTE Survival : chaque téléphone joue la même séquence (même graine) à son rythme
- * et juge lui-même ses inputs ; ici on enregistre la progression et on classe.
- */
 public class QteSurvival implements MiniGame {
     public static final String ID = "qte_survival";
     private static final Random RANDOM = new Random();
 
     private Collection<Player> players = List.of();
-    // Le dernier en vie prend la 1re place d'office (voir rank)
     private Player lastStanding;
 
     @Override public String id() { return ID; }
@@ -42,7 +37,6 @@ public class QteSurvival implements MiniGame {
         eliminate(player, player.getProgress());
     }
 
-    /** Le téléphone juge le timing ; on ne fait qu'enregistrer (jamais de recul). */
     void recordProgress(Player p, int progress) {
         if (p.isAlive() && progress > p.getProgress()) p.setProgress(progress);
     }
@@ -60,11 +54,6 @@ public class QteSurvival implements MiniGame {
         return players.stream().noneMatch(Player::isAlive);
     }
 
-    /**
-     * Classement à la distance parcourue ; ex æquo = même rang. +1 point par input.
-     * Le dernier debout compte comme ayant la meilleure distance : toujours 1er, mais il partage
-     * la place avec ceux allés aussi loin (sinon l'ordre d'arrivée réseau des K.O. déciderait).
-     */
     @Override
     public List<RankEntry> ranking() {
         int best = players.stream().mapToInt(Player::getProgress).max().orElse(0);
@@ -72,7 +61,7 @@ public class QteSurvival implements MiniGame {
 
         List<Player> sorted = new ArrayList<>(players);
         sorted.sort(Comparator.comparingInt(distance).reversed()
-            .thenComparing(p -> p != lastStanding)); // affiché en tête de ses ex æquo
+            .thenComparing(p -> p != lastStanding));
         return RankEntry.assign(sorted, distance);
     }
 }

@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useWebSocket, type ServerMessage } from "./useWebSocket";
-import { GAMES, DEFAULT_GAME } from "./games";
-import type { PlayerInfo } from "./games/types";
-import { colorOf } from "./colors";
-import { Crown, PhoneAvatar } from "./components/art";
-import { SOUNDS, unlockAudio } from "./feedback";
-import { REACTIONS, type ReactionId } from "./reactions";
+import { GAMES, DEFAULT_GAME, type PlayerInfo } from "./games";
+import { colorOf, SOUNDS, unlockAudio, REACTIONS, type ReactionId } from "./feedback";
+import { Crown, LangSwitch, PhoneAvatar } from "./components/art";
+import { useLang } from "./i18n";
 
 interface RankEntry { id: string; name: string; color: string; progress: number; rank: number; points: number; score: number }
 
-const MAX_PLAYERS = 8; // = RoomRegistry.MAX_PLAYERS
-const BUBBLE_MS = 2600; // = durée de l'animation .bubble
-const SPEEDS = [0.8, 1, 1.2, 1.5]; // vitesses de départ proposées (le serveur borne entre 0.5 et 2.5)
-const MAX_ROUNDS = 10; // = Room.MAX_ROUNDS
+const MAX_PLAYERS = 8;
+const BUBBLE_MS = 2600;
+const SPEEDS = [0.8, 1, 1.2, 1.5];
+const MAX_ROUNDS = 10;
 
-interface Bubble { id: string; name: string; color: string; text: string; x: number }
+interface Bubble { id: string; name: string; color: string; reaction: ReactionId; x: number }
 
 export function HostView() {
     const [roomCode, setRoomCode] = useState<string | null>(null);
@@ -29,16 +27,15 @@ export function HostView() {
     const [bubbles, setBubbles] = useState<Bubble[]>([]);
     const [copied, setCopied] = useState(false);
     const linkRef = useRef<HTMLSpanElement>(null);
+    const { lang, t } = useLang();
 
     const copyLink = async () => {
         const link = `${window.location.origin}/${roomCode}`;
         try {
-            // L'API presse-papiers n'existe qu'en https (Render) ou sur localhost
             await navigator.clipboard.writeText(link);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
         } catch {
-            // En http sur le réseau local : on sélectionne le lien, Ctrl+C suffit
             const range = document.createRange();
             if (linkRef.current) range.selectNodeContents(linkRef.current);
             window.getSelection()?.removeAllRanges();
@@ -50,7 +47,6 @@ export function HostView() {
         if (msg.type === "room_created") setRoomCode(msg.roomCode);
         if (msg.type === "player_list_update") {
             setPlayers(msg.players);
-            // L'ordre des K.O. alimente l'étoile « K.O.! » et le bandeau EN DIRECT
             setKoOrder(prev => [...prev, ...msg.players.filter((p: PlayerInfo) => !p.alive && !prev.includes(p.id)).map((p: PlayerInfo) => p.id)]);
         }
         if (msg.type === "game_start") {
@@ -58,12 +54,11 @@ export function HostView() {
             setKoOrder([]);
             setGameState("playing");
         }
-        if (msg.type === "reaction") {
+        if (msg.type === "reaction" && REACTIONS.includes(msg.reaction)) {
             const bubble: Bubble = {
                 id: `${msg.id}-${performance.now()}`, name: msg.name, color: msg.color,
-                text: REACTIONS[msg.reaction as ReactionId], x: 8 + Math.random() * 84,
+                reaction: msg.reaction, x: 8 + Math.random() * 84,
             };
-            // Au plus 12 bulles à l'écran : l'ambiance sans masquer la partie
             setBubbles(prev => [...prev.slice(-11), bubble]);
             setTimeout(() => setBubbles(prev => prev.filter(b => b !== bubble)), BUBBLE_MS);
             SOUNDS.pop();
@@ -78,14 +73,12 @@ export function HostView() {
         }
     });
 
-    // Pas d'écran intermédiaire : la salle est créée dès que le serveur répond
     useEffect(() => {
         if (connected && !roomCode) sendMessage({ type: "create_room" });
     }, [connected, roomCode, sendMessage]);
 
     const handleStartGame = () => {
-        unlockAudio(); // ce clic est le geste qui autorise le son sur l'écran partagé
-        // rounds / speed ne sont pris en compte par le serveur qu'au lancement depuis le lobby
+        unlockAudio();
         sendMessage({ type: "start_game", roomCode, game: DEFAULT_GAME, rounds, speed });
     };
 
@@ -93,7 +86,7 @@ export function HostView() {
         return (
             <div className="host-screen center-col" style={{ justifyContent: "center" }}>
                 <h1 className="host-logo">LAST PHONE<br /><span>STANDING</span></h1>
-                <p className="muted">{connected ? "Création de la salle…" : "Connexion au serveur… (au premier lancement, le serveur peut mettre une minute à se réveiller)"}</p>
+                <p className="muted">{connected ? t.creatingRoom : t.connectingHost}</p>
             </div>
         );
     }
@@ -107,7 +100,7 @@ export function HostView() {
                 <div className="bubbles" aria-hidden>
                     {bubbles.map(b => (
                         <div key={b.id} className="bubble" style={{ left: `${b.x}%`, borderColor: colorOf(b.color) }}>
-                            <span style={{ color: colorOf(b.color) }}>{b.name}</span> {b.text}
+                            <span style={{ color: colorOf(b.color) }}>{b.name}</span> {t.reactions[b.reaction]}
                         </div>
                     ))}
                 </div>
@@ -122,7 +115,6 @@ export function HostView() {
         );
     }
 
-    // Lien direct basé sur l'adresse actuelle du Host (http en local, https sur Render)
     const directLink = `${window.location.origin}/${roomCode}`;
     const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
     const lobbyGame = GAMES[DEFAULT_GAME];
@@ -132,16 +124,19 @@ export function HostView() {
             <header className="row-between" style={{ alignItems: "flex-start" }}>
                 <div>
                     <h1 className="host-logo">LAST PHONE<br /><span>STANDING</span></h1>
-                    <p className="muted" style={{ fontSize: "1.3rem", margin: "12px 0 0" }}>Le dernier téléphone debout gagne.</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 12 }}>
+                        <p className="muted" style={{ fontSize: "1.3rem", margin: 0 }}>{t.tagline}</p>
+                        <LangSwitch style={{ position: "static" }} />
+                    </div>
                 </div>
                 <div className="join-card">
                     <div>
-                        <div className="label">Rejoins sur</div>
+                        <div className="label">{t.joinAt}</div>
                         <div className="join-link">
                             <span ref={linkRef} className="join-url">{window.location.host}/{roomCode}</span>
-                            <button className="copy-btn" onClick={copyLink}>{copied ? "COPIÉ !" : "COPIER"}</button>
+                            <button className="copy-btn" onClick={copyLink}>{copied ? t.copied : t.copy}</button>
                         </div>
-                        <div className="label">Code de la salle</div>
+                        <div className="label">{t.roomCode}</div>
                         <div className="code-tiles">{roomCode.split("").map((c, i) => <span key={i}>{c}</span>)}</div>
                     </div>
                     <div className="qr"><QRCodeSVG value={directLink} size={170} bgColor="#f3f0e8" fgColor="#12112a" /></div>
@@ -150,24 +145,24 @@ export function HostView() {
 
             {isLocalhost && (
                 <div className="warning">
-                    Les téléphones ne peuvent pas joindre « localhost » : ouvre cette page via l'adresse <b>Network</b> affichée par Vite.
+                    {t.localhostWarn[0]} <b>Network</b> {t.localhostWarn[1]}
                 </div>
             )}
 
             <div className="row-between">
-                <h2 className="section-title">JOUEURS <span>{players.length} / {MAX_PLAYERS}</span></h2>
-                <span className="muted" style={{ fontSize: "1.1rem" }}>Choisis ta couleur sur ton téléphone</span>
+                <h2 className="section-title">{t.players} <span>{players.length} / {MAX_PLAYERS}</span></h2>
+                <span className="muted" style={{ fontSize: "1.1rem" }}>{t.pickColor}</span>
             </div>
 
             <div className="slots">
                 {Array.from({ length: MAX_PLAYERS }, (_, i) => {
                     const p = players[i];
-                    if (!p) return <div key={i} className="slot empty"><div className="slot-ghost" /><span>En attente…</span></div>;
+                    if (!p) return <div key={i} className="slot empty"><div className="slot-ghost" /><span>{t.waitingSlot}</span></div>;
                     return (
                         <div key={p.id} className="slot">
                             <PhoneAvatar color={colorOf(p.color)} size={130} tilt={i % 2 ? 3 : -3} />
                             <b>{p.name}</b>
-                            <span className="badge" style={{ background: colorOf(p.color) }}>PRÊT</span>
+                            <span className="badge" style={{ background: colorOf(p.color) }}>{t.ready}</span>
                         </div>
                     );
                 })}
@@ -175,20 +170,20 @@ export function HostView() {
 
             <footer className="row-between">
                 <span className="muted" style={{ fontSize: "1.1rem" }}>
-                    Mini-jeu : <b style={{ color: "var(--text)" }}>{lobbyGame.name}</b> — {lobbyGame.tagline}
+                    {t.miniGame} <b style={{ color: "var(--text)" }}>{lobbyGame.name}</b> — {lobbyGame.tagline[lang]}
                 </span>
                 <div className="settings">
                     <div className="setting">
-                        <span className="label">Manches</span>
+                        <span className="label">{t.rounds}</span>
                         <div className="stepper">
-                            <button aria-label="Moins de manches" disabled={rounds <= 1} onClick={() => setRounds(r => r - 1)}>−</button>
+                            <button aria-label={t.fewerRounds} disabled={rounds <= 1} onClick={() => setRounds(r => r - 1)}>−</button>
                             <b>{rounds}</b>
-                            <button aria-label="Plus de manches" disabled={rounds >= MAX_ROUNDS} onClick={() => setRounds(r => r + 1)}>+</button>
+                            <button aria-label={t.moreRounds} disabled={rounds >= MAX_ROUNDS} onClick={() => setRounds(r => r + 1)}>+</button>
                         </div>
                     </div>
                     <div className="setting">
-                        <span className="label">Vitesse de départ</span>
-                        <div className="segmented" role="radiogroup" aria-label="Vitesse de départ">
+                        <span className="label">{t.startSpeed}</span>
+                        <div className="segmented" role="radiogroup" aria-label={t.startSpeed}>
                             {SPEEDS.map(s => (
                                 <button key={s} role="radio" aria-checked={s === speed} className={s === speed ? "active" : undefined} onClick={() => setSpeed(s)}>
                                     ×{s.toFixed(1)}
@@ -197,7 +192,7 @@ export function HostView() {
                         </div>
                     </div>
                 </div>
-                <button className="btn-primary" onClick={handleStartGame} disabled={players.length === 0}>LANCER LA PARTIE</button>
+                <button className="btn-primary" onClick={handleStartGame} disabled={players.length === 0}>{t.startGame}</button>
             </footer>
         </div>
     );
@@ -212,7 +207,6 @@ const CONFETTI = [
     { left: "7%", top: "35%", c: "#ff8a3d", w: 12, h: 12, r: 0 },
 ];
 
-/** Classement final au score cumulé ; même score = même rang. */
 function rankByScore(ranking: RankEntry[]): RankEntry[] {
     const sorted = [...ranking].sort((a, b) => b.score - a.score);
     const out: RankEntry[] = [];
@@ -220,20 +214,17 @@ function rankByScore(ranking: RankEntry[]): RankEntry[] {
     return out;
 }
 
-/** Fin de manche (maquette page 3) ou, après la dernière manche, fin de partie au score cumulé. */
 function Results({ round, ranking: roundRanking, final, totalRounds, onNext, onLobby }: {
     round?: number; ranking: RankEntry[]; final: boolean; totalRounds: number; onNext: () => void; onLobby: () => void;
 }) {
+    const { t } = useLang();
     const ranking = final ? rankByScore(roundRanking) : roundRanking;
     const winner = ranking[0];
-    // Ce qui est affiché pour chaque joueur : inputs de la manche, ou score total en fin de partie
     const metric = (e: RankEntry) => (final ? `${e.score} pts` : `${e.progress} inputs`);
-    // Fanfare au moment où le 1er monte sur le podium (délai = animation .podium-col.first)
     useEffect(() => {
         const id = setTimeout(SOUNDS.fanfare, 1200);
         return () => clearTimeout(id);
     }, []);
-    // Groupes d'ex æquo, dans l'ordre des rangs : [1ers, 2es, 3es…]
     const groups: RankEntry[][] = [];
     for (const e of ranking) {
         const last = groups.at(-1);
@@ -248,11 +239,11 @@ function Results({ round, ranking: roundRanking, final, totalRounds, onNext, onL
                 <span key={i} className="confetti" style={{ left: c.left, top: c.top, width: c.w, height: c.h, background: c.c, "--r": `${c.r}deg`, animationDelay: `${i * 0.4}s` } as CSSProperties} />
             ))}
             <div className="results-main">
-                <div className="label">{final ? `Partie terminée — ${totalRounds} manche${totalRounds > 1 ? "s" : ""}` : `Manche ${round} / ${totalRounds} — terminée`}</div>
+                <div className="label">{final ? t.gameOver(totalRounds) : t.roundOver(round, totalRounds)}</div>
                 {winner && (
                     <h1 className="results-title">
                         <span style={{ color: colorOf(winner.color) }}>{winner.name.toUpperCase()}</span>
-                        {final ? <> REMPORTE<br />LA PARTIE !</> : <> EST LE DERNIER<br />TÉLÉPHONE DEBOUT</>}
+                        {final ? <>{t.winsGame[0]}<br />{t.winsGame[1]}</> : <>{t.lastPhone[0]}<br />{t.lastPhone[1]}</>}
                     </h1>
                 )}
                 <div className="podium">
@@ -273,10 +264,9 @@ function Results({ round, ranking: roundRanking, final, totalRounds, onNext, onL
                                 <b style={{ fontSize: "1.3rem" }}>{g.map(e => e.name).join(" & ")}</b>
                                 <div style={{ opacity: 0.8 }}>
                                     {[
-                                        g.length > 1 && "ex æquo",
-                                        // Le dernier debout peut partager la 1re place avec plus d'inputs que lui
+                                        g.length > 1 && t.tied,
                                         g.every(e => metric(e) === metric(g[0])) && metric(g[0]),
-                                        !final && g[0] === winner && "dernier debout",
+                                        !final && g[0] === winner && t.lastStandingSmall,
                                     ].filter(Boolean).join(" · ")}
                                 </div>
                             </div>
@@ -286,9 +276,9 @@ function Results({ round, ranking: roundRanking, final, totalRounds, onNext, onL
             </div>
 
             <aside className="ranking-card">
-                <h2 className="section-title">CLASSEMENT</h2>
+                <h2 className="section-title">{t.ranking}</h2>
                 <p className="muted" style={{ margin: 0 }}>
-                    {final ? "Classé selon le score cumulé sur toutes les manches." : "Classé selon la distance parcourue, pas l'ordre d'élimination."}
+                    {final ? t.byScore : t.byDistance}
                 </p>
                 {ranking.map(e => {
                     const tied = ranking.some(o => o !== e && o.rank === e.rank);
@@ -303,15 +293,15 @@ function Results({ round, ranking: roundRanking, final, totalRounds, onNext, onL
                                 <>
                                     <span className="muted">{e.progress} inputs</span>
                                     <span className="pts">+{e.points}</span>
-                                    {(round ?? 1) > 1 && <span className="muted" title="Score cumulé">= {e.score}</span>}
+                                    {(round ?? 1) > 1 && <span className="muted" title={t.totalScore}>= {e.score}</span>}
                                 </>
                             )}
                         </div>
                     );
                 })}
                 {final
-                    ? <button className="btn-primary" style={{ marginTop: "auto" }} onClick={onLobby}>RETOUR AU LOBBY</button>
-                    : <button className="btn-primary" style={{ marginTop: "auto" }} onClick={onNext}>MANCHE SUIVANTE</button>}
+                    ? <button className="btn-primary" style={{ marginTop: "auto" }} onClick={onLobby}>{t.backToLobby}</button>
+                    : <button className="btn-primary" style={{ marginTop: "auto" }} onClick={onNext}>{t.nextRound}</button>}
             </aside>
         </div>
     );
