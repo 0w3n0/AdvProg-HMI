@@ -1,5 +1,6 @@
 package com.lastphonestanding.game;
 
+import com.lastphonestanding.game.MiniGame.RankEntry;
 import com.google.gson.JsonObject;
 import com.lastphonestanding.room.Player;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,7 @@ class QteSurvivalTest {
         game.eliminate(a, 20);
         game.eliminate(b, 10);
         assertFalse(game.isOver(), "C encore en vie");
-        game.eliminate(c, 12); // C était le dernier debout
+        game.eliminate(c, 12);
         assertTrue(game.isOver());
         assertEquals(List.of("1:C:12", "1:A:20", "3:B:10"), summary(game.ranking()));
     }
@@ -63,7 +64,7 @@ class QteSurvivalTest {
         JsonObject progress = new JsonObject();
         progress.addProperty("count", 5);
         game.onPlayerMessage(a, "progress", progress);
-        progress.addProperty("count", 3); // message en retard : pas de recul
+        progress.addProperty("count", 3);
         game.onPlayerMessage(a, "progress", progress);
         assertEquals(5, a.getProgress());
 
@@ -77,7 +78,7 @@ class QteSurvivalTest {
 
     @Test
     void registryCreatesFreshInstances() {
-        assertNotSame(MiniGames.create(MiniGames.DEFAULT), MiniGames.create(MiniGames.DEFAULT));
-        assertNull(MiniGames.create("inconnu"));
+        assertNotSame(MiniGame.create(MiniGame.DEFAULT), MiniGame.create(MiniGame.DEFAULT));
+        assertNull(MiniGame.create("inconnu"));
     }
 }

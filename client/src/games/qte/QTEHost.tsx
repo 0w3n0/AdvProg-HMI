@@ -1,29 +1,28 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { roundSpeed } from "./qte";
 import { COUNTDOWN_MS } from "./QTEPhone";
-import type { HostGameProps } from "../types";
-import { colorOf } from "../../colors";
+import type { HostGameProps } from "..";
 import { Crown, KoBurst, PhoneAvatar } from "../../components/art";
-import { SOUNDS, reducedMotion } from "../../feedback";
+import { colorOf, SOUNDS, reducedMotion } from "../../feedback";
+import { useLang } from "../../i18n";
 
 const SHAKE: Keyframe[] = [
     { transform: "translate(0, 0)" }, { transform: "translate(-14px, 6px)" }, { transform: "translate(12px, -8px)" },
     { transform: "translate(-8px, 4px)" }, { transform: "translate(0, 0)" },
 ];
 
-/** Écran partagé pendant la manche (maquette page 2) : une colonne par joueur, hauteur = inputs réussis. */
 export function QTEHost({ start, players, koOrder }: HostGameProps) {
     const round: number = start.round;
+    const { t } = useLang();
     const alive = players.filter(p => p.alive);
     const rootRef = useRef<HTMLDivElement>(null);
     const koCount = koOrder.length;
     const aliveCount = alive.length;
     const playerCount = players.length;
 
-    // Compte à rebours calé sur celui des téléphones (même durée, démarré au même message)
     const [t0] = useState(() => performance.now());
     const [now, setNow] = useState(t0);
-    const remaining = Math.ceil((COUNTDOWN_MS - (now - t0)) / 1000); // 3, 2, 1, 0 (= GO), puis négatif
+    const remaining = Math.ceil((COUNTDOWN_MS - (now - t0)) / 1000);
     const counting = remaining >= 0;
     useEffect(() => {
         if (!counting) return;
@@ -35,7 +34,6 @@ export function QTEHost({ start, players, koOrder }: HostGameProps) {
         else if (remaining === 0) SOUNDS.go();
     }, [remaining]);
 
-    // Impact frame à chaque K.O. : son + secousse (le flash inversé est rendu plus bas)
     useEffect(() => {
         if (koCount === 0) return;
         SOUNDS.bonk();
@@ -54,27 +52,27 @@ export function QTEHost({ start, players, koOrder }: HostGameProps) {
 
     const name = (p: { name: string; color: string }) => <b style={{ color: colorOf(p.color) }}>{p.name}</b>;
     const ticker: ReactNode[] = [];
-    if (lastKo) ticker.push(<>{name(lastKo)} est K.O. après {lastKo.progress} inputs</>);
-    if (leader && leader.progress > 0) ticker.push(<>{name(leader)} mène avec {leader.progress} inputs</>);
-    if (spectator) ticker.push(<>{name(spectator)} regarde depuis les tribunes</>);
+    if (lastKo) ticker.push(<>{name(lastKo)}{t.koAfter(lastKo.progress)}</>);
+    if (leader && leader.progress > 0) ticker.push(<>{name(leader)}{t.leads(leader.progress)}</>);
+    if (spectator) ticker.push(<>{name(spectator)}{t.watching}</>);
 
     return (
         <div className="host-screen" ref={rootRef} style={{ position: "relative" }}>
             {koCount > 0 && <div key={koCount} className="impact-flash" />}
             {counting && (
                 <div className="countdown-overlay">
-                    <div key={remaining} className="countdown">{remaining > 0 ? remaining : "GO !"}</div>
+                    <div key={remaining} className="countdown">{remaining > 0 ? remaining : t.go}</div>
                 </div>
             )}
             {playerCount > 1 && aliveCount === 1 && (
                 <div className="last-banner">
-                    <b style={{ color: colorOf(alive[0].color) }}>{alive[0].name}</b> — DERNIER DEBOUT !
+                    <b style={{ color: colorOf(alive[0].color) }}>{alive[0].name}</b> — {t.lastStanding}
                 </div>
             )}
             <header className="live-top">
                 <div className="logo-small">LAST PHONE <span>STANDING</span></div>
-                <div><span className="display muted">MANCHE {round} / {start.totalRounds}</span> <span className="muted">· Vitesse ×{roundSpeed(round, start.startSpeed).toFixed(1)}</span></div>
-                <div className="pill"><i />{alive.length} / {players.length} EN VIE</div>
+                <div><span className="display muted">{t.round} {round} / {start.totalRounds}</span> <span className="muted">· {t.speed} ×{roundSpeed(round, start.startSpeed).toFixed(1)}</span></div>
+                <div className="pill"><i />{alive.length} / {players.length} {t.alive}</div>
             </header>
 
             <div className="lanes">
@@ -112,8 +110,8 @@ export function QTEHost({ start, players, koOrder }: HostGameProps) {
             </div>
 
             <footer className="ticker">
-                <span className="live-badge">EN DIRECT</span>
-                {ticker.map((t, i) => <span key={i}>{i > 0 && <span className="muted">•&nbsp;&nbsp;</span>}{t}</span>)}
+                <span className="live-badge">{t.live}</span>
+                {ticker.map((item, i) => <span key={i}>{i > 0 && <span className="muted">•&nbsp;&nbsp;</span>}{item}</span>)}
             </footer>
         </div>
     );
