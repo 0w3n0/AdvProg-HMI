@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useWebSocket, type ServerMessage } from "./useWebSocket";
-import { GAMES, DEFAULT_GAME } from "./games";
-import type { PlayerInfo } from "./games/types";
-import { PLAYER_COLORS, colorOf, type ColorId } from "./colors";
-import { PhoneAvatar } from "./components/art";
-import { getPhoneSound, phoneFeedback, setPhoneSound } from "./feedback";
-import { REACTIONS, REACTION_COOLDOWN_MS, type ReactionId } from "./reactions";
+import { GAMES, DEFAULT_GAME, type PlayerInfo } from "./games";
+import { PLAYER_COLORS, colorOf, type ColorId, getPhoneSound, phoneFeedback, setPhoneSound, REACTIONS, REACTION_COOLDOWN_MS, type ReactionId } from "./feedback";
+import { LangSwitch, PhoneAvatar } from "./components/art";
+import { useLang } from "./i18n";
 
 interface ClientViewProps {
     initialRoomCode?: string;
@@ -15,14 +13,13 @@ interface RankEntry { id: string; name: string; progress: number; rank: number; 
 
 const COLOR_IDS = Object.keys(PLAYER_COLORS) as ColorId[];
 
-// Session du téléphone : après un rechargement ou une coupure, le jeton permet de reprendre sa place
 interface Session { roomCode: string; token: string; name: string; color: ColorId }
 const SESSION_KEY = "lps-session";
 function loadSession(): Session | null {
     try { return JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null"); } catch { return null; }
 }
 function saveSession(s: Session | null) {
-    try { if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s)); else localStorage.removeItem(SESSION_KEY); } catch { /* navigation privée */ }
+    try { if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s)); else localStorage.removeItem(SESSION_KEY); } catch (e) { console.warn(e); }
 }
 
 export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
@@ -30,9 +27,7 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
     const [name, setName] = useState(saved?.name ?? "");
     const [roomCode, setRoomCode] = useState(initialRoomCode);
     const [color, setColor] = useState<ColorId>(saved?.color ?? "yellow");
-    // Vrai quand il faut présenter le jeton à la prochaine connexion (rechargement, puis chaque coupure)
     const rejoinPending = useRef(saved !== null);
-    // sendMessage n'existe qu'après useWebSocket : le handler passe par cette ref
     const sendRef = useRef<(payload: object) => void>(() => {});
     const [takenColors, setTakenColors] = useState<string[]>([]);
     const [roomInfoTick, setRoomInfoTick] = useState(0);
@@ -42,36 +37,32 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
     const [error, setError] = useState("");
     const [startMsg, setStartMsg] = useState<ServerMessage>(null);
     const [ko, setKo] = useState<{ count: number; summary: ReactNode } | null>(null);
-    // finalRank : rang au score cumulé, seulement après la dernière manche
     const [myResult, setMyResult] = useState<(RankEntry & { finalRank?: number; round: number; totalRounds: number }) | null>(null);
     const [phoneSound, setPhoneSoundState] = useState(getPhoneSound);
     const [reactionCooldown, setReactionCooldown] = useState(false);
+    const { t } = useLang();
 
     const { connected, sendMessage } = useWebSocket((msg: ServerMessage) => {
         if (msg.type === "room_info") {
             setTakenColors(msg.takenColors);
-            // Si ma couleur vient d'être prise, je bascule sur la première libre
             if (msg.takenColors.includes(color)) setColor(COLOR_IDS.find(c => !msg.takenColors.includes(c)) ?? color);
         } else if (msg.type === "join_success") {
             setMyId(msg.id);
             setError("");
             saveSession({ roomCode, token: msg.token, name, color });
-            // URL = /CODE : recharger la page ramène dans la salle
             window.history.replaceState(null, "", `/${roomCode}`);
             if (msg.state === "IN_ROUND") {
-                // Revenu en pleine manche : éliminé de celle-ci (règle de déconnexion), il rejoue à la suivante
-                setKo({ count: msg.progress, summary: "Reconnecté ! Tu rejoues à la prochaine manche." });
+                setKo({ count: msg.progress, summary: t.reconnected });
                 setGameState("ko");
             } else {
                 setGameState("waiting");
             }
         } else if (msg.type === "rejoin_failed") {
-            // Place perdue (ex. déconnecté pendant le lobby) : on retente un join normal avec le même pseudo
             saveSession(null);
             if (name.trim()) sendRef.current({ type: "join_room", roomCode, name, color });
         } else if (msg.type === "error") {
             setError(msg.message);
-            if (msg.message === "Couleur déjà prise") setRoomInfoTick(t => t + 1); // recharge les couleurs prises
+            if (msg.message === "Couleur déjà prise") setRoomInfoTick(n => n + 1);
         } else if (msg.type === "player_list_update") {
             setPlayers(msg.players);
         } else if (msg.type === "game_start") {
@@ -86,7 +77,6 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
             } : null);
             setGameState("ended");
         } else if (msg.type === "lobby") {
-            // Nouvelle partie : retour à l'écran d'attente, scores remis à zéro côté serveur
             setMyResult(null);
             setKo(null);
             setGameState("waiting");
@@ -104,7 +94,6 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
 
     useEffect(() => { sendRef.current = sendMessage; }, [sendMessage]);
 
-    // Connexion (ou reconnexion) : si on a une place dans cette salle, on la reprend avec le jeton
     useEffect(() => {
         if (!connected) {
             if (joined) rejoinPending.current = true;
@@ -117,14 +106,13 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
         }
     }, [connected, joined, roomCode, sendMessage]);
 
-    // Dès que le code est complet : vérifie la salle et récupère les couleurs prises
     useEffect(() => {
         if (connected && !joined && roomCode.length === 4) sendMessage({ type: "room_info", roomCode });
     }, [connected, joined, roomCode, sendMessage, roomInfoTick]);
 
     const react = (reaction: ReactionId) => {
         sendMessage({ type: "reaction", reaction });
-        phoneFeedback("reaction"); // la bulle est sur l'écran partagé : le téléphone confirme dans la main
+        phoneFeedback("reaction");
         setReactionCooldown(true);
         setTimeout(() => setReactionCooldown(false), REACTION_COOLDOWN_MS);
     };
@@ -156,7 +144,6 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
 
     if (gameState === "ko" && ko) {
         const alive = players.filter(p => p.alive).length;
-        // Ceux déjà passés devant moi : au mieux, je finis juste derrière eux
         const bestRank = 1 + players.filter(p => p.id !== myId && p.progress > ko.count).length;
         return (
             <div className="phone-screen center-col ko-enter ko-screen">
@@ -167,29 +154,29 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
                 <p style={{ fontSize: "1.2rem", margin: 0 }}>{ko.summary}</p>
                 <div className="stat-cards" style={{ marginTop: 12 }}>
                     <div className="card">
-                        <span className="label">Tu as tenu</span>
+                        <span className="label">{t.youLasted}</span>
                         <b style={{ color: "var(--accent)" }}>{ko.count}</b>
-                        <span className="muted">input{ko.count > 1 ? "s" : ""}</span>
+                        <span className="muted">{t.inputs(ko.count)}</span>
                     </div>
                     <div className="card">
-                        <span className="label">Rang provisoire</span>
-                        <b>≥ {bestRank}<sup style={{ fontSize: "0.5em" }}>{bestRank === 1 ? "er" : "e"}</sup></b>
-                        <span className="muted">{alive} encore en vie</span>
+                        <span className="label">{t.provisionalRank}</span>
+                        <b>≥ {bestRank}<sup style={{ fontSize: "0.5em" }}>{t.ord(bestRank)}</sup></b>
+                        <span className="muted">{t.stillAlive(alive)}</span>
                     </div>
                 </div>
                 <div className="card info-card">
                     <Monitor />
-                    <span><b>Ne pars pas !</b> La fin se joue sur l'écran principal.</span>
+                    <span><b>{t.dontLeave}</b> {t.endOnMain}</span>
                 </div>
-                <span className="label" style={{ marginTop: "auto" }}>Réagis depuis les tribunes</span>
+                <span className="label" style={{ marginTop: "auto" }}>{t.cheer}</span>
                 <div className="reaction-row">
-                    {(Object.keys(REACTIONS) as ReactionId[]).map(id => (
+                    {REACTIONS.map(id => (
                         <button key={id} className="btn-pad reaction-btn" disabled={reactionCooldown} onClick={() => react(id)}>
-                            {REACTIONS[id]}
+                            {t.reactions[id]}
                         </button>
                     ))}
                 </div>
-                <p className="hint ko-hint">Tes réactions s'affichent sur l'écran principal</p>
+                <p className="hint ko-hint">{t.reactionsShown}</p>
             </div>
         );
     }
@@ -198,30 +185,30 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
         return (
             <div className="phone-screen center-col" style={{ justifyContent: "center" }}>
                 <span className="label">
-                    {myResult?.finalRank ? "Partie terminée — classement final" : `Manche ${myResult?.round ?? "?"} / ${myResult?.totalRounds ?? "?"} terminée`}
+                    {myResult?.finalRank ? t.finalRanking : t.roundDone(myResult?.round ?? "?", myResult?.totalRounds ?? "?")}
                 </span>
                 <PhoneAvatar color={myColor} size={170} />
                 {myResult?.finalRank && (
                     <>
                         <h1 className="display" style={{ fontSize: "5rem", lineHeight: 1 }}>
-                            {myResult.finalRank}<sup style={{ fontSize: "0.4em" }}>{myResult.finalRank === 1 ? "er" : "e"}</sup>
+                            {myResult.finalRank}<sup style={{ fontSize: "0.4em" }}>{t.ord(myResult.finalRank)}</sup>
                         </h1>
-                        <p style={{ fontSize: "1.2rem", margin: 0 }}><b style={{ color: "var(--accent)" }}>{myResult.score} pts</b> au total</p>
-                        <p className="muted" style={{ margin: 0 }}>Dernière manche : {myResult.rank}<sup>{myResult.rank === 1 ? "er" : "e"}</sup> · {myResult.progress} inputs</p>
+                        <p style={{ fontSize: "1.2rem", margin: 0 }}><b style={{ color: "var(--accent)" }}>{myResult.score} pts</b> {t.inTotal}</p>
+                        <p className="muted" style={{ margin: 0 }}>{t.lastRound} {myResult.rank}<sup>{t.ord(myResult.rank)}</sup> · {myResult.progress} {t.inputs(myResult.progress)}</p>
                     </>
                 )}
                 {myResult && !myResult.finalRank && (
                     <>
                         <h1 className="display" style={{ fontSize: "5rem", lineHeight: 1 }}>
-                            {myResult.rank}<sup style={{ fontSize: "0.4em" }}>{myResult.rank === 1 ? "er" : "e"}</sup>
+                            {myResult.rank}<sup style={{ fontSize: "0.4em" }}>{t.ord(myResult.rank)}</sup>
                         </h1>
                         <p style={{ fontSize: "1.2rem", margin: 0 }}>
-                            {myResult.progress} inputs · <b style={{ color: "var(--accent)" }}>+{myResult.points} pts</b>
+                            {myResult.progress} {t.inputs(myResult.progress)} · <b style={{ color: "var(--accent)" }}>+{myResult.points} pts</b>
                         </p>
-                        <p className="muted" style={{ margin: 0 }}>Total : {myResult.score} pts</p>
+                        <p className="muted" style={{ margin: 0 }}>{t.total} {myResult.score} pts</p>
                     </>
                 )}
-                <p className="muted">{myResult?.finalRank ? "Regarde l'écran principal !" : "En attente de la manche suivante…"}</p>
+                <p className="muted">{myResult?.finalRank ? t.watchMain : t.waitingNext}</p>
             </div>
         );
     }
@@ -229,18 +216,19 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
     if (joined) {
         return (
             <div className="phone-screen center-col waiting-screen">
+                <LangSwitch />
                 <div className="waiting-head">
                     <PhoneAvatar color={myColor} size={80} />
                     <div>
                         <h1 className="display" style={{ fontSize: "1.6rem", margin: 0 }}>{me?.name ?? name}</h1>
-                        <span className="badge" style={{ background: myColor }}>PRÊT</span>
+                        <span className="badge" style={{ background: myColor }}>{t.ready}</span>
                     </div>
                 </div>
-                <p className="muted" style={{ margin: 0 }}>Tu es dans la partie ! La manche démarre depuis l'écran principal.</p>
+                <p className="muted" style={{ margin: 0 }}>{t.inGame}</p>
                 <HowTo />
                 <button className="btn-pad" style={{ padding: "10px 20px" }} aria-pressed={phoneSound}
                     onClick={() => { setPhoneSound(!phoneSound); setPhoneSoundState(!phoneSound); }}>
-                    {phoneSound ? "🔊 Son du téléphone : activé" : "🔇 Son du téléphone : coupé"}
+                    {phoneSound ? t.soundOn : t.soundOff}
                 </button>
             </div>
         );
@@ -248,41 +236,41 @@ export function ClientView({ initialRoomCode = "" }: ClientViewProps) {
 
     return (
         <div className="phone-screen">
+            <LangSwitch />
             <div className="center-col" style={{ marginBottom: 28 }}>
                 <PhoneAvatar color={myColor} size={150} />
                 <h1 className="logo">LAST PHONE<br /><span>STANDING</span></h1>
             </div>
 
-            <label className="label" htmlFor="code">Code de la salle</label>
+            <label className="label" htmlFor="code">{t.roomCode}</label>
             <input id="code" className="code-input" maxLength={4} autoComplete="off" autoCapitalize="characters"
                 value={roomCode} placeholder="····"
                 onChange={e => { setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")); setError(""); setTakenColors([]); }} />
 
-            <label className="label" htmlFor="name">Ton pseudo</label>
+            <label className="label" htmlFor="name">{t.nickname}</label>
             <input id="name" className="text-input" maxLength={16} value={name} onChange={e => setName(e.target.value)} />
 
-            <span className="label">Ta couleur</span>
-            <div className="swatches" role="radiogroup" aria-label="Ta couleur">
+            <span className="label">{t.yourColor}</span>
+            <div className="swatches" role="radiogroup" aria-label={t.yourColor}>
                 {COLOR_IDS.map(id => (
                     <button key={id} role="radio" aria-checked={id === color} aria-label={id}
                         className={`swatch${id === color ? " selected" : ""}`} style={{ background: PLAYER_COLORS[id] }}
                         disabled={takenColors.includes(id)} onClick={() => setColor(id)} />
                 ))}
             </div>
-            <p className="hint">Grisé = déjà pris par un autre joueur</p>
+            <p className="hint">{t.greyed}</p>
 
-            {error && <p className="error">{error}</p>}
-            {!connected && <p className="hint">Connexion au serveur… (jusqu'à une minute s'il se réveille)</p>}
+            {error && <p className="error">{t.errors[error] ?? error}</p>}
+            {!connected && <p className="hint">{t.connecting}</p>}
 
             <button className="btn-primary" style={{ marginTop: "auto", width: "100%" }} onClick={handleJoin}
                 disabled={!connected || !name.trim() || roomCode.length !== 4}>
-                REJOINDRE
+                {t.join}
             </button>
         </div>
     );
 }
 
-/** Fissures en fond de l'écran K.O. */
 function Cracks() {
     return (
         <svg className="cracks" viewBox="0 0 100 200" preserveAspectRatio="none" aria-hidden>
