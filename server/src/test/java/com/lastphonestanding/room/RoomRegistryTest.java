@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RoomRegistryTest {
 
-    /** Connexion factice ouverte : identité propre, le reste ne fait rien. */
     private static WebSocket openConn() {
         return (WebSocket) Proxy.newProxyInstance(WebSocket.class.getClassLoader(), new Class<?>[]{WebSocket.class},
             (proxy, m, args) -> switch (m.getName()) {
@@ -54,6 +53,6 @@ class RoomRegistryTest {
 
         reg.handleDisconnect(phone);
         assertTrue(room.getPlayers().containsValue(owen));
-        assertNull(reg.roomOf(phone)); // ancienne connexion oubliée
+        assertNull(reg.roomOf(phone));
     }
 }

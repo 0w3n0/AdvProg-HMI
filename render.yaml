@@ -1,6 +1,4 @@
-# Blueprint Render : crée les deux services d'un coup (Dashboard > New > Blueprint)
 services:
-  # Serveur Java WebSocket (Render n'a pas de runtime Java natif => Docker)
   - type: web
     name: last-phone-standing-server
     runtime: docker
@@ -9,7 +7,6 @@ services:
     plan: free
     branch: final-presentation
 
-  # Client React (site statique)
   - type: web
     name: last-phone-standing
     runtime: static
@@ -17,13 +14,11 @@ services:
     staticPublishPath: ./client/dist
     branch: final-presentation
     envVars:
-      # À vérifier après le 1er déploiement : doit être l'URL réelle du serveur, en wss://
       - key: VITE_WS_URL
         value: wss://last-phone-standing-server.onrender.com
       - key: NODE_VERSION
         value: "22"
     routes:
-      # Les liens directs /CODE (QR code) doivent servir l'appli React
       - type: rewrite
         source: /*
         destination: /index.html
