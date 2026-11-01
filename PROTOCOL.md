@@ -276,3 +276,28 @@ joueurs acceptés. Le serveur répond `{ "type": "lobby" }` à l'hôte et aux t�
 ```json
 { "type": "back_to_lobby", "roomCode": "AB12" }
 ```
+
+## Reconnexion (rejoin)
+
+### `join_success` (complété)
+```json
+{ "type": "join_success", "id": "uuid-1", "token": "secret", "state": "LOBBY", "progress": 0 }
+```
+- `token` : secret du téléphone (l'`id`, lui, est diffusé à tous). Gardé en `localStorage` (`lps-session`) avec le code, le pseudo et la couleur.
+- `state` : `LOBBY`, `IN_ROUND` (le téléphone part dans les tribunes : éliminé de cette manche) ou `ENDED` (entre deux manches).
+- Une fois dans la salle, l'URL du téléphone devient `/<CODE>` : recharger la page ramène dans la salle.
+
+### `rejoin` (Client → Serveur)
+```json
+{ "type": "rejoin", "roomCode": "AB12", "token": "secret" }
+```
+Envoyé à chaque (re)connexion si une session existe pour cette salle (les téléphones se reconnectent seuls toutes les 2 s).
+Le joueur récupère sa place et son score ; l'ancienne connexion, si elle est encore ouverte, est fermée.
+
+### `rejoin_failed` (Serveur → Client)
+```json
+{ "type": "rejoin_failed", "message": "Session expirée" }
+```
+La place n'existe plus (déconnecté pendant le lobby, salle fermée). Le téléphone retente un `join_room` avec le même pseudo et la même couleur.
+
+Règle de place : retiré en lobby ; gardé en manche (éliminé) et entre deux manches ; purgé au lancement suivant s'il n'est pas revenu.
